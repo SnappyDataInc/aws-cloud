@@ -21,7 +21,7 @@ Before you begin, ensure that:
  $ docker run hello-world
  ```
 
-2. **Start a basic cluster with one data node, one lead and one locator**
+2. **Start a basic cluster with one data node, one lead, and one locator**
 
  **For Linux**
 
@@ -30,7 +30,7 @@ Before you begin, ensure that:
  ```
  **For Mac OS**
 
- If you are using MAC OS you need to redirect the ports manually.
+ If you are using MAC OS you need to redirect the ports manually.</br>
  Note: If you use `--net=host`, it may not work correctly on the Mac OS.
 
  Run the following command to start SnappyData Cluster on Mac OS:
@@ -40,7 +40,7 @@ Before you begin, ensure that:
  ```
  The `-J-Dgemfirexd.hostname-for-clients` parameter sets the IP Address or Host name that this server listens on for client connections.
 
- <Note>Note: It may take some time for this command to complete execution.</Note>
+ Note: It may take some time for this command to complete execution.
 
 3. **Check the Docker Process**
 
@@ -77,7 +77,7 @@ Before you begin, ensure that:
 
 5. **Connect SnappyData with the Command Line Client**
  ```
- $ docker exec -it snappydata ./bin/snappy-shell
+ $ docker exec -it snappydata ./bin/snappy
  ```
  
 6. **Connect Client on port “1527”**
@@ -145,7 +145,7 @@ Check the version of Docker Compose to verify the installation.
  Creating server1
  Creating snappy-lead1
  ```
- This creates three containers; a locator, server and lead. 
+ This creates three containers; a locator, server, and lead. 
 
  ```
 $ docker-compose ps
@@ -182,15 +182,15 @@ $ docker-compose ps
 
  The above logs display that the cluster has started successfully on the three containers.
 
-5. **Connect SnappyData with the Command Line Client**
+5. **Connect to the cluster (in step 3) using Snappy shell**
 
- The following example illustrates how to connect with snappy-shell. 
- 
- [Download](https://github.com/SnappyDataInc/snappydata/releases/download/v0.8/snappydata-0.8-bin.tar.gz) the binary files from the SnappyData repository. Go the location of the **bin** directory in the SnappyData home directory, and then start the snappy-shell.
+ The following example illustrates how to connect to the cluster using Snappy shell. 
+
+ [Download](http://snappydatainc.github.io/snappydata/install) the binary files from the SnappyData repository. Go the location of the **bin** directory in the SnappyData home directory, and then run the following command:
 
  ```
- bin$ ./snappy-shell
- SnappyData version 0.8
+ $ bin/snappy
+ SnappyData version 1.0.0 
  snappy>
  ```
   Note: If you want to connect to SnappyData with DB client tools like dbSchema, DBVisualizer or Squirrel SQL client,  the jar **snappydata-store-client-1.5.4.jar** file available on the official [SnappyData Release page](#https://github.com/SnappyDataInc/snappydata/releases). Refer to the documentation provided by your client tool for instructions on how to make a JDBC connection.
@@ -240,7 +240,7 @@ $ docker-compose ps
  Removing locator1 ... done
  Removing network dockercompose_snappydata
  ```
- Note : When you remove containers from the Docker engine, any data that exists on the containers is destroyed. 
+ Note: When you remove containers from the Docker engine, any data that exists in the containers is destroyed. 
 
 <hr>
 
@@ -254,7 +254,7 @@ To connect to the Cloud providers like AWS, AZURE and Digital Ocean refer to the
 
 Using Docker Cloud, connect to a cloud hosting provider of your choice. Currently, Amazon Web Services, Digital Ocean, Microsoft Azure, Softlayer and Packet and BYOH (bring your own host) are supported.
 
-1. Go to the [Docker Cloud](http://cloud.docker.com) page, and login using your Docker ID.
+1. Go to the [Docker Cloud](http://cloud.docker.com) page, and log in using your Docker ID.
 
 2. **Create a Node: **
  a. From the left-pane, click **Nodes**. The **Nodes** page is displayed.
@@ -268,10 +268,10 @@ Using Docker Cloud, connect to a cloud hosting provider of your choice. Currentl
  
  ![Node](images/create_node1.png) 
    
- d. It may take some time to create a node. The status is dislayed as **Deploying**. When the node is created, the status is updated to **Deployed**.
+ d. It may take some time to create a node. The status is displayed as **Deploying**. When the node is created, the status is updated to **Deployed**.
 
 3. **Create Stacks:**
- a. In the left-pane, click **Stacks**. The **Stacks **page is displayed.
+ a. In the left pane, click **Stacks**. The **Stacks **page is displayed.
 
  ![Node](images/stacks.png) 
  
@@ -281,27 +281,25 @@ Using Docker Cloud, connect to a cloud hosting provider of your choice. Currentl
  
  c. Enter a name for the stack. 
  
- d. Copy and paste the sample code provided in the [**stack.yml **](https://raw.githubusercontent.com/SnappyDataInc/snappy-cloud-tools/master/docker/docker-cloud/stack.yml) file in the text box. This starts a locator, server and lead using the latest image provided by SnappyData.
+ d. Copy and paste the sample code provided in the [**stack.yml **](https://raw.githubusercontent.com/SnappyDataInc/snappy-cloud-tools/master/docker/docker-cloud/stack.yml) file in the text box. This starts a locator, a server and a lead using the latest image provided by SnappyData.
 
  ![Node](images/create_stack2.png) 
 
  e. Click **Create** to create the stack or click **Create & Deploy** to create and deploy the stack. If you click **Create**, you have to manually start the stack after it is created.
 
  f. The status of the list of the resulting services is displayed.
- Currently, the default strategy (emptiest node) used by Docker Cloud is used for load balancing. Based on your requirements, you can use from the strategies provided by Docker.
+ Currently, the default strategy (emptiest node) used by Docker Cloud is used for load balancing. Based on your requirements, you can use any of the the strategies provided by Docker.
 
  g. To verify the status of the elements, click on **Nodes**, select a node, and then go to the **Containers** tab. The page displays the containers that are running.
 
  ![Node](images/verify_containers.png) 
 
-4. **Verify connection with snappy-shell ** 
- a. Download the binary files from the [SnappyData repository](https://github.com/SnappyDataInc/snappydata/releases/download/v0.8/snappydata-0.8-bin.tar.gz) and go to the location of the **bin** directory in the SnappyData home directory.
-
- b. Using the command line client, connect to SnappyData and then start the snappy-shell.
+4. **Verify connection to the Snappy shell ** 
+ a. [Download](http://snappydatainc.github.io/snappydata/install) the binary files from the SnappyData repository. Go the location of the **bin** directory in the SnappyData home directory, and then run the following command:
 
  ```
- bin$ ./snappy-shell
- SnappyData version 0.8
+ $ bin/snappy
+ SnappyData version 1.0.0 
  snappy>
  ```
   Note: You can also connect to SnappyData with DB client tools like dbSchema, DBVisualizer or Squirrel SQL client using the **snappydata-store-client-1.5.4.jar** file available on the official [SnappyData Release page](#https://github.com/SnappyDataInc/snappydata/releases). Refer to the documentation provided by your client tool for instructions on how to make a JDBC connection.
@@ -324,13 +322,14 @@ Using Docker Cloud, connect to a cloud hosting provider of your choice. Currentl
  c. You can also monitor the cluster by connecting to the SnappyData UI using the URL.
 ![Node](images/monitor.png) 
 
-*NOTE: The above document provides you basic instructions to set up a cluster using Docker Cloud. Depending on your needs, you can explore the full potential of SnappyData on Docker Cloud using the UI or CLI. Refer to the [Docker Cloud's documentation](https://docs.docker.com/docker-cloud/) and the [SnappyData documentation](http://snappydatainc.github.io/snappydata/) for more information.
-*
+
+NOTE: The above document provides you basic instructions to set up a cluster using Docker Cloud. Depending on your needs, you can explore the full potential of SnappyData on Docker Cloud using the UI or CLI. Refer to the [Docker Cloud's documentation](https://docs.docker.com/docker-cloud/) and the [SnappyData documentation](http://snappydatainc.github.io/snappydata/) for more information.
+
 <hr>
 
 ## SnappyData With Docker Swarm
 
-This article explains how to setup multi-host SnappyData cluster using Docker Swarm, Docker Machine and Docker Compose.
+This article explains how to setup multi-host SnappyData cluster using Docker Swarm, Docker Machine, and Docker Compose.
 
 ### Prerequisites
 Before you begin, make sure you have a system on your network with the latest version of Docker Engine, Docker Machine and Docker Compose installed. The example also relies on VirtualBox. If you are using Mac or Windows with Docker Toolbox, you have all of these installed already.
@@ -407,12 +406,12 @@ An overlay network requires a key-value store. The key-value store holds informa
  snappy-swarm2   -        virtualbox   Running   tcp://192.168.99.106:2376   snappy-swarm0            v1.12.3
  ```
 
- At this point you have a set of hosts running on your network. You are ready to create a multi-host network for containers using these hosts.
+ At this point, you have a set of hosts running on your network. You are ready to create a multi-host network for containers using these hosts.
  Leave your terminal open and go onto the next step.
 
 **Step 3: Copy SnappyData image in three machines**
 
- a. Pull latest image of snappydata and save it in temp directory
+ a. Pull the latest image of snappydata and save it in temp directory
  ```
  $ docker-machine ssh snappy-swarm0 'docker pull snappydatainc/snappydata;docker save -o /tmp/snappydata.tar snappydatainc/snappydata:latest'
  ```
@@ -559,7 +558,7 @@ If you see a URL response, you are ready to go. If not, read the [Getting Starte
 
 **Use a PetSet to create SnappyData Services**
 
-In Kubernetes, most pod management abstractions group them into disposable units of work that compose a micro service. Replication controllers for example, are designed with a weak guarantee - that there should be N replicas of a particular pod template. The pods are treated as stateless units, if one of them is unhealthy or superseded by a newer version, the system just disposes it. [Please refer to the PetSet documentation.](http://kubernetes.io/docs/user-guide/petset/)
+In Kubernetes, most pod management abstractions group them into disposable units of work that compose a microservice. Replication controllers, for example, are designed with a weak guarantee - that there should be N replicas of a particular pod template. The pods are treated as stateless units, if one of them is unhealthy or superseded by a newer version, the system just disposes it. [Please refer to the PetSet documentation.](http://kubernetes.io/docs/user-guide/petset/)
 
 Creates a SnappyData cluster that consists of three pods using [snappydata.yml](https://raw.githubusercontent.com/SnappyDataInc/snappy-cloud-tools/master/docker/kubernetes/snappydata.yml) PetSet.
 
@@ -640,7 +639,7 @@ spec:
 
 **Troubleshooting**
 
-If you are having trouble bringing up SnappyData Services, double check that your external IP is properly defined for your frontend Service, and that the firewall for your cluster nodes is open to port `1527, 10334, 8080, 5050` .
+If you are having trouble bringing up SnappyData Services, double check that your external IP is properly defined for your frontend Service, and that the firewall for your cluster nodes is open to port `1527, 10334, 8080, 5050`.
 
 **Accessing the SnappyData externally**
 
