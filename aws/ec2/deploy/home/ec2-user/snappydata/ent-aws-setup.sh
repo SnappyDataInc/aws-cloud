@@ -33,6 +33,10 @@ echo "$LEADS" > lead_list
 echo "$SERVERS" > server_list
 echo "$ZEPPELIN_HOST" > zeppelin_server
 
+LOCATORS=`cat locator_list`
+LEADS=`cat lead_list`
+SERVERS=`cat server_list`
+
 if [[ -e snappy-env.sh ]]; then
   mv snappy-env.sh "${SNAPPY_HOME_DIR}/conf/"
 fi
@@ -71,15 +75,21 @@ DIR=`readlink -f zeppelin-setup.sh`
 DIR=`echo "$DIR"|sed 's@/$@@'`
 DIR=`dirname "$DIR"`
 
+# TODO Do this at server and lead vm and not at locator vm as it could be of different type.
 # Calculate heap and off-heap sizes.
 # Set heap to be 8GB or 1/4th of considered memory, whichever is higher. Remaining for off-heap.
 MYRAM=`free -gt | grep Total | awk '{print $2}'`
-AVAIL=`echo $MYRAM \* 0.9 / 1 | bc`
+AVAIL=`echo $MYRAM \* 0.8 / 1 | bc`
 HEAP=`echo $AVAIL \* 0.25 / 1 | bc`
-HEAP=$(($HEAP < 8 ? 8 : $HEAP))
+HEAP=$(($HEAP < 4 ? 4 : $HEAP))
+HEAP=$(($HEAP > 8 ? 8 : $HEAP))
 OFFHEAP=`echo $AVAIL - $HEAP | bc`
-echo "RAM: $MYRAM, considered: $AVAIL, heap: $HEAP, off-heap: $OFFHEAP" >> memory-breakup.txt
-HEAPSTR="-heap-size=${HEAP}g"
+
+if [[ $HEAP -gt $AVAIL ]]; then
+  HEAPSTR=""
+else
+  HEAPSTR="-heap-size=${HEAP}g"
+fi
 
 if [[ $OFFHEAP -le 0 ]]; then
   OFFHEAPSTR=""
@@ -87,10 +97,12 @@ else
   OFFHEAPSTR="-memory-size=${OFFHEAP}g"
 fi
 
+echo "Total: $MYRAM, considered: $AVAIL, heap: $HEAP, off-heap: $OFFHEAP" >> memory-breakup.txt
+
 addProps() {
   grep "$1" "$2"
   if [[ "$?" -ne 0 ]]; then
-    sed -i "/^#/ ! {/\\$/ ! { /^[[:space:]]*$/ ! s/\([^ ]*\)\(.*\)$/\1\2 $3\1/}}" "$2"
+    sed -i "/^#/ ! {/\\$/ ! { /^[[:space:]]*$/ ! s/$/ $3/}}" "$2"
   fi
 }
 
@@ -99,9 +111,11 @@ addProps "-memory-size" "${SNAPPY_HOME_DIR}/conf/servers" "${OFFHEAPSTR}"
 addProps "-heap-size" "${SNAPPY_HOME_DIR}/conf/leads" "${HEAPSTR}"
 addProps "-memory-size" "${SNAPPY_HOME_DIR}/conf/leads" "${OFFHEAPSTR}"
 
+# TODO Set SPARK_DNS_HOST to public hostname of Lead so that SnappyData Pulse UI links work fine.
 
 copyConfs() {
   for node in "$1"; do
+    echo "Copying conf files to ${node}..."
     scp -q -o StrictHostKeyChecking=no ${SNAPPY_HOME_DIR}/conf/locators "${node}:/opt/snappydata/conf"
     scp -q -o StrictHostKeyChecking=no ${SNAPPY_HOME_DIR}/conf/servers "${node}:/opt/snappydata/conf"
     scp -q -o StrictHostKeyChecking=no ${SNAPPY_HOME_DIR}/conf/leads "${node}:/opt/snappydata/conf"
@@ -109,9 +123,12 @@ copyConfs() {
 }
 
 # Copy conf files to all nodes
+# TODO Iterate over file entries and not over variables.
 copyConfs "${OTHER_LOCATORS}"
 copyConfs "${LEADS}"
 copyConfs "${SERVERS}"
+
+echo -e "export SNAPPY_HOME_DIR=${SNAPPY_HOME_DIR}" >> ec2-variables.sh
 
 # Launch the SnappyData cluster
 sh "${SNAPPY_HOME_DIR}/sbin/snappy-start-all.sh"

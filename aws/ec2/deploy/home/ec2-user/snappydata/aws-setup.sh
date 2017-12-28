@@ -23,10 +23,10 @@ source ec2-variables.sh
 # Check if enterprise version to be used.
 if [[ "${SNAPPYDATA_VERSION}" = "ENT" ]]; then
   echo "Setting up the cluster with SnappyData Enterprise edition ..."
-  wget -q "https://raw.githubusercontent.com/SnappyDataInc/snappy-cloud-tools/test-02/aws/ec2/deploy/home/ec2-user/snappydata/ent-aws-setup.sh"
+  # wget -q "https://raw.githubusercontent.com/SnappyDataInc/snappy-cloud-tools/test-02/aws/ec2/deploy/home/ec2-user/snappydata/ent-aws-setup.sh"
   sh ent-aws-setup.sh
   ENT_SETUP=`echo $?`
-  rm -f ent-aws-setup.sh
+  # rm -f ent-aws-setup.sh
   popd > /dev/null
   exit ${ENT_SETUP}
 fi
@@ -75,7 +75,6 @@ INTERPRETER_VERSION="0.7.2"
 
 if [[ "${ZEPPELIN_HOST}" != "NONE" ]]; then
   # Add interpreter jar to snappydata's jars directory
-  # TODO Download this from official-github-release. See fetch-distribution.sh:getLatestUrl() on how we can get the latest url.
   INTERPRETER_JAR="snappydata-zeppelin-${INTERPRETER_VERSION}.jar"
   INTERPRETER_URL="https://github.com/SnappyDataInc/zeppelin-interpreter/releases/download/v${INTERPRETER_VERSION}/${INTERPRETER_JAR}"
   wget -q "${INTERPRETER_URL}"
