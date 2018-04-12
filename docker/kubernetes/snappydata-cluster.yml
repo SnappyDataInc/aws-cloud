@@ -76,9 +76,9 @@ spec:
         image: snappydatainc/snappydata:1.0.0
         imagePullPolicy: IfNotPresent
         resources:
-        requests:
-          memory: "1024Mi"
-#         cpu: "200m"
+          requests:
+            memory: "1024Mi"
+#           cpu: "200m"
         ports:
         - containerPort: 10334
           name: locator
@@ -89,8 +89,18 @@ spec:
           tcpSocket:
             port: 1527
           initialDelaySeconds: 80
-        command: ["/bin/bash", "-c"]
-        args: ["start locator"]
+        command: 
+          - "/bin/bash"
+          - "-c"
+          - >
+            # get the start script 
+            rm -f start;
+            wget https://raw.githubusercontent.com/SnappyDataInc/snappy-cloud-tools/SNAP-2213_2/docker/start;
+            # start locator
+            hname=`hostname`;
+            workdir="/opt/snappydata/work/$hname";
+            mkdir -p "$workdir";
+            start locator -dir="$workdir";
         lifecycle:
           preStop:
             exec:
@@ -99,8 +109,7 @@ spec:
         volumeMounts:
         - mountPath: "/opt/snappydata/work"
           name: snappy-disk-claim
-
-  terminationGracePeriodSeconds: 60
+      terminationGracePeriodSeconds: 60
   
   volumeClaimTemplates:
   - metadata:
@@ -148,8 +157,20 @@ spec:
           tcpSocket:
             port: 1527
           initialDelaySeconds: 160
-        command: ["/bin/bash", "-c"]
-        args: ["sleep 15; start server -locators=snappydata-locator:10334 -client-port=1527 -J-Dgemfirexd.hostname-for-clients=snappydata-server-public ; sleep 10000000"]
+        command: 
+          - "/bin/bash"
+          - "-c"
+          - > 
+            #get the start script 
+            rm -f start;
+            wget https://raw.githubusercontent.com/SnappyDataInc/snappy-cloud-tools/SNAP-2213_2/docker/start;
+            #start server
+            hname=`hostname`;
+            workdir="/opt/snappydata/work/$hname";
+            mkdir -p "$workdir";
+            sleep 15; 
+            start server -locators=snappydata-locator:10334 -client-port=1527 -dir="$workdir" -J-Dgemfirexd.hostname-for-clients=snappydata-server-public; 
+            sleep 10000000;
         lifecycle:
           preStop:
             exec:
@@ -205,8 +226,20 @@ spec:
             path: /
             port: 5050
           initialDelaySeconds: 160
-        command: ["/bin/bash", "-c"]
-        args: ["sleep 15; start lead -locators=snappydata-locator:10334 ; sleep 1000000"]
+        command: 
+          - "/bin/bash"
+          - "-c"
+          - >
+            # get the start script 
+            rm -f start;
+            wget https://raw.githubusercontent.com/SnappyDataInc/snappy-cloud-tools/SNAP-2213_2/docker/start;
+            # start leader 
+            hname=`hostname`;
+            workdir="/opt/snappydata/work/$hname";
+            mkdir -p "$workdir";
+            sleep 15; 
+            start lead -locators=snappydata-locator:10334 -dir="$workdir"; 
+            sleep 1000000;
         lifecycle:
           preStop:
             exec:

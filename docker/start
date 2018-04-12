@@ -40,16 +40,16 @@ case "$1" in
       exit 1
       ;;
    server)
-      echo $IP > /opt/snappydata/conf/servers
-      $sbin/snappy-servers.sh start "${@:2}"
+      echo $IP "${@:2}" > /opt/snappydata/conf/servers
+      $sbin/snappy-servers.sh start
       ;;
    locator)
-      echo $IP > /opt/snappydata/conf/locators
-      sbin/snappy-locators.sh start "${@:2}"
+      echo $IP "${@:2}" > /opt/snappydata/conf/locators
+      sbin/snappy-locators.sh start
       ;;
    lead)
-      echo $IP > /opt/snappydata/conf/leads
-      $sbin/snappy-leads.sh start "${@:2}"
+      echo $IP "${@:2}" > /opt/snappydata/conf/leads
+      $sbin/snappy-leads.sh start
       ;;
    all)
       $sbin/snappy-start-all.sh -client-bind-address=0.0.0.0 -prefer-netserver-ipaddress=true "${@:2}"
