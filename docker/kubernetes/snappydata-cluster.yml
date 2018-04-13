@@ -18,10 +18,21 @@ spec:
   - port: 1527
     targetPort: 1527
     name: jdbc
+  type: LoadBalancer
+  selector:
+    app: snappydata-locator
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: snappydata-locator-internal
+  labels:
+    app: snappydata
+spec:
+  ports:
   - port: 10334
     targetPort: 10334
     name: locator-clustering-endpoint
-  type: LoadBalancer
   selector:
     app: snappydata-locator
 ---
@@ -93,14 +104,22 @@ spec:
           - "/bin/bash"
           - "-c"
           - >
-            # get the start script 
-            rm -f start;
-            wget https://raw.githubusercontent.com/SnappyDataInc/snappy-cloud-tools/SNAP-2213_2/docker/start;
-            # start locator
+            cat /etc/passwd > /tmp/passwd;
+            echo "$(id -u):x:$(id -u):$(id -g):dynamic uid:/opt/snappydata:/bin/false" >> /tmp/passwd;
+
+            export NSS_WRAPPER_PASSWD=/tmp/passwd;
+            export NSS_WRAPPER_GROUP=/etc/group;
+            export LD_PRELOAD=/usr/lib64/libnss_wrapper.so;
+
+            echo "starting sshd service";
+            service sshd start;
+
             hname=`hostname`;
             workdir="/opt/snappydata/work/$hname";
             mkdir -p "$workdir";
-            start locator -dir="$workdir";
+            echo "$hname  -dir=$workdir" > /opt/snappydata/conf/locators;
+            /opt/snappydata/sbin/snappy-locators.sh start;
+            tail -f /dev/null;
         lifecycle:
           preStop:
             exec:
@@ -160,17 +179,24 @@ spec:
         command: 
           - "/bin/bash"
           - "-c"
-          - > 
-            #get the start script 
-            rm -f start;
-            wget https://raw.githubusercontent.com/SnappyDataInc/snappy-cloud-tools/SNAP-2213_2/docker/start;
-            #start server
+          - >
+            cat /etc/passwd > /tmp/passwd;
+            echo "$(id -u):x:$(id -u):$(id -g):dynamic uid:/opt/snappydata:/bin/false" >> /tmp/passwd;
+
+            export NSS_WRAPPER_PASSWD=/tmp/passwd;
+            export NSS_WRAPPER_GROUP=/etc/group;
+            export LD_PRELOAD=/usr/lib64/libnss_wrapper.so;
+
+            echo "starting sshd service";
+            service sshd start;
+
             hname=`hostname`;
             workdir="/opt/snappydata/work/$hname";
             mkdir -p "$workdir";
-            sleep 15; 
-            start server -locators=snappydata-locator:10334 -client-port=1527 -dir="$workdir" -J-Dgemfirexd.hostname-for-clients=snappydata-server-public; 
-            sleep 10000000;
+            sleep 30;
+            echo "$hname -locators=snappydata-locator-internal:10334 -client-port=1527 -dir=$workdir" > /opt/snappydata/conf/servers;
+            /opt/snappydata/sbin/snappy-servers.sh start;
+            tail -f /dev/null;
         lifecycle:
           preStop:
             exec:
@@ -230,16 +256,23 @@ spec:
           - "/bin/bash"
           - "-c"
           - >
-            # get the start script 
-            rm -f start;
-            wget https://raw.githubusercontent.com/SnappyDataInc/snappy-cloud-tools/SNAP-2213_2/docker/start;
-            # start leader 
+            cat /etc/passwd > /tmp/passwd;
+            echo "$(id -u):x:$(id -u):$(id -g):dynamic uid:/opt/snappydata:/bin/false" >> /tmp/passwd;
+
+            export NSS_WRAPPER_PASSWD=/tmp/passwd;
+            export NSS_WRAPPER_GROUP=/etc/group;
+            export LD_PRELOAD=/usr/lib64/libnss_wrapper.so;
+
+            echo "starting sshd service";
+            service sshd start;
+
             hname=`hostname`;
             workdir="/opt/snappydata/work/$hname";
             mkdir -p "$workdir";
-            sleep 15; 
-            start lead -locators=snappydata-locator:10334 -dir="$workdir"; 
-            sleep 1000000;
+            sleep 30;
+            echo "$hname -locators=snappydata-locator-internal:10334 -dir=$workdir" > /opt/snappydata/conf/leads;
+            /opt/snappydata/sbin/snappy-leads.sh start;
+            tail -f /dev/null;
         lifecycle:
           preStop:
             exec:
