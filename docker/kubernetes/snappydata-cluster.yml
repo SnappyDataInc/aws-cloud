@@ -128,8 +128,7 @@ spec:
         volumeMounts:
         - mountPath: "/opt/snappydata/work"
           name: snappy-disk-claim
-      terminationGracePeriodSeconds: 60
-  
+
   volumeClaimTemplates:
   - metadata:
       name: snappy-disk-claim
@@ -205,8 +204,7 @@ spec:
         volumeMounts:
         - mountPath: "/opt/snappydata/work"
           name: snappy-disk-claim
-      terminationGracePeriodSeconds: 60
-  
+
   volumeClaimTemplates:
   - metadata:
       name: snappy-disk-claim
@@ -281,8 +279,7 @@ spec:
         volumeMounts:
         - mountPath: "/opt/snappydata/work"
           name: snappy-disk-claim
-      terminationGracePeriodSeconds: 60
-  
+
   volumeClaimTemplates:
   - metadata:
       name: snappy-disk-claim
