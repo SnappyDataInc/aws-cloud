@@ -38,19 +38,19 @@ die() { echo "ERROR: $*" 1>&2; exit 1; }
 
 case "$1" in
    "")
-      echo "Usage: start [server|lead|locator|all]"
+      echo "Usage: start (locator|server|lead|all) [extra config]"
       exit 1
+      ;;
+   locator)
+      echo "$HOSTNAME -dir=$WORK_DIR ${@:2}" > ${PRODUCT_DIR}/conf/locators
+      ${PRODUCT_DIR}/sbin/snappy-locators.sh start
+      echo "Started locator "`date` >> ${PRODUCT_DIR}/work/status.log
       ;;
    server)
       sleep 30;
       echo "$HOSTNAME -dir=$WORK_DIR ${@:2}" > ${PRODUCT_DIR}/conf/servers
       ${PRODUCT_DIR}/sbin/snappy-servers.sh start
       echo "Started server "`date` >> ${PRODUCT_DIR}/work/status.log
-      ;;
-   locator)
-      echo "$HOSTNAME -dir=$WORK_DIR ${@:2}" > ${PRODUCT_DIR}/conf/locators
-      ${PRODUCT_DIR}/sbin/snappy-locators.sh start
-      echo "Started locator "`date` >> ${PRODUCT_DIR}/work/status.log
       ;;
    lead)
       sleep 30;
