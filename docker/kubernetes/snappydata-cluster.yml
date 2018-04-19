@@ -65,7 +65,6 @@ spec:
   type: LoadBalancer
   selector:
     app: snappydata-leader
-
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -84,7 +83,7 @@ spec:
     spec:
       containers:
       - name: snappydata-locator
-        image: snappydatainc/snappydata:1.0.0
+        image: snappydatainc/snappydata:1.0.1
         imagePullPolicy: IfNotPresent
         resources:
           requests:
@@ -99,32 +98,19 @@ spec:
         livenessProbe:
           tcpSocket:
             port: 1527
-          initialDelaySeconds: 80
+          initialDelaySeconds: 120
         command: 
           - "/bin/bash"
           - "-c"
           - >
-            cat /etc/passwd > /tmp/passwd;
-            echo "$(id -u):x:$(id -u):$(id -g):dynamic uid:/opt/snappydata:/bin/false" >> /tmp/passwd;
-
-            export NSS_WRAPPER_PASSWD=/tmp/passwd;
-            export NSS_WRAPPER_GROUP=/etc/group;
-            export LD_PRELOAD=/usr/lib64/libnss_wrapper.so;
-
-            echo "starting sshd service";
-            service sshd start;
-
-            hname=`hostname`;
-            workdir="/opt/snappydata/work/$hname";
-            mkdir -p "$workdir";
-            echo "$hname  -dir=$workdir" > /opt/snappydata/conf/locators;
-            /opt/snappydata/sbin/snappy-locators.sh start;
-            tail -f /dev/null;
+            yum -y -q install wget; yum clean all -y;
+            wget -q https://raw.githubusercontent.com/SnappyDataInc/snappy-cloud-tools/master/docker/start;
+            chmod 744 start;
+            /opt/snappydata/start locator;
         lifecycle:
           preStop:
             exec:
-              command:
-              - /opt/snappydata/sbin/snappy-locators.sh stop
+              command: ["/opt/snappydata/sbin/snappy-locators.sh", "stop"]
         volumeMounts:
         - mountPath: "/opt/snappydata/work"
           name: snappy-disk-claim
@@ -160,7 +146,7 @@ spec:
     spec:
       containers:
       - name: snappydata-server
-        image: snappydatainc/snappydata:1.0.0
+        image: snappydatainc/snappydata:1.0.1
         imagePullPolicy: IfNotPresent
         resources:
           requests:
@@ -174,33 +160,19 @@ spec:
         livenessProbe:
           tcpSocket:
             port: 1527
-          initialDelaySeconds: 160
+          initialDelaySeconds: 180
         command: 
           - "/bin/bash"
           - "-c"
           - >
-            cat /etc/passwd > /tmp/passwd;
-            echo "$(id -u):x:$(id -u):$(id -g):dynamic uid:/opt/snappydata:/bin/false" >> /tmp/passwd;
-
-            export NSS_WRAPPER_PASSWD=/tmp/passwd;
-            export NSS_WRAPPER_GROUP=/etc/group;
-            export LD_PRELOAD=/usr/lib64/libnss_wrapper.so;
-
-            echo "starting sshd service";
-            service sshd start;
-
-            hname=`hostname`;
-            workdir="/opt/snappydata/work/$hname";
-            mkdir -p "$workdir";
-            sleep 30;
-            echo "$hname -locators=snappydata-locator-internal:10334 -client-port=1527 -dir=$workdir" > /opt/snappydata/conf/servers;
-            /opt/snappydata/sbin/snappy-servers.sh start;
-            tail -f /dev/null;
+            yum -y -q install wget; yum clean all -y;
+            wget -q https://raw.githubusercontent.com/SnappyDataInc/snappy-cloud-tools/master/docker/start;
+            chmod 744 start;
+            /opt/snappydata/start server -locators=snappydata-locator-internal:10334;
         lifecycle:
           preStop:
             exec:
-              command:
-              - /opt/snappydata/sbin/snappy-servers.sh stop
+              command: ["/opt/snappydata/sbin/snappy-servers.sh", "stop"]
         volumeMounts:
         - mountPath: "/opt/snappydata/work"
           name: snappy-disk-claim
@@ -236,7 +208,7 @@ spec:
     spec:
       containers:
       - name: snappydata-leader
-        image: snappydatainc/snappydata:1.0.0
+        image: snappydatainc/snappydata:1.0.1
         imagePullPolicy: IfNotPresent
         resources:
           requests:
@@ -249,33 +221,19 @@ spec:
           httpGet:
             path: /
             port: 5050
-          initialDelaySeconds: 160
+          initialDelaySeconds: 180
         command: 
           - "/bin/bash"
           - "-c"
           - >
-            cat /etc/passwd > /tmp/passwd;
-            echo "$(id -u):x:$(id -u):$(id -g):dynamic uid:/opt/snappydata:/bin/false" >> /tmp/passwd;
-
-            export NSS_WRAPPER_PASSWD=/tmp/passwd;
-            export NSS_WRAPPER_GROUP=/etc/group;
-            export LD_PRELOAD=/usr/lib64/libnss_wrapper.so;
-
-            echo "starting sshd service";
-            service sshd start;
-
-            hname=`hostname`;
-            workdir="/opt/snappydata/work/$hname";
-            mkdir -p "$workdir";
-            sleep 30;
-            echo "$hname -locators=snappydata-locator-internal:10334 -dir=$workdir" > /opt/snappydata/conf/leads;
-            /opt/snappydata/sbin/snappy-leads.sh start;
-            tail -f /dev/null;
+            yum -y -q install wget; yum clean all -y;
+            wget -q https://raw.githubusercontent.com/SnappyDataInc/snappy-cloud-tools/master/docker/start;
+            chmod 744 start;
+            /opt/snappydata/start lead -locators=snappydata-locator-internal:10334;
         lifecycle:
           preStop:
             exec:
-              command:
-              - /opt/snappydata/sbin/snappy-leads.sh stop
+              command: ["/opt/snappydata/sbin/snappy-leads.sh", "stop"]
         volumeMounts:
         - mountPath: "/opt/snappydata/work"
           name: snappy-disk-claim

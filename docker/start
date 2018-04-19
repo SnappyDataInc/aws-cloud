@@ -16,6 +16,7 @@
 # LICENSE file.
 #
 
+echo "Preparing SnappyData process start "`date` >> /opt/snappydata/work/status.log;
 cat /etc/passwd > /tmp/passwd
 echo "$(id -u):x:$(id -u):$(id -g):dynamic uid:/opt/snappydata:/bin/false" >> /tmp/passwd
 
@@ -23,13 +24,14 @@ export NSS_WRAPPER_PASSWD=/tmp/passwd
 export NSS_WRAPPER_GROUP=/etc/group
 export LD_PRELOAD=/usr/lib64/libnss_wrapper.so
 
-echo "starting sshd service"
+echo "Starting sshd service"
 service sshd start
 
 HOSTNAME=`hostname`
+PRODUCT_DIR=/opt/snappydata
+WORK_DIR="$PRODUCT_DIR/work/$HOSTNAME"
+mkdir -p "$WORK_DIR"
 
-IP=`ping -c 1 $HOSTNAME | grep "64 bytes from"|awk '{print $5}' | awk -F"(" '{print $2}' | awk -F")" '{print $1}'`
-sbin=/opt/snappydata/sbin
 die() { echo "ERROR: $*" 1>&2; exit 1; }
 
 
@@ -40,19 +42,37 @@ case "$1" in
       exit 1
       ;;
    server)
-      echo $IP "${@:2}" > /opt/snappydata/conf/servers
-      $sbin/snappy-servers.sh start
+      sleep 30;
+      echo "$HOSTNAME -dir=$WORK_DIR ${@:2}" > ${PRODUCT_DIR}/conf/servers
+      ${PRODUCT_DIR}/sbin/snappy-servers.sh start
+      echo "Started server "`date` >> ${PRODUCT_DIR}/work/status.log
       ;;
    locator)
-      echo $IP "${@:2}" > /opt/snappydata/conf/locators
-      sbin/snappy-locators.sh start
+      echo "$HOSTNAME -dir=$WORK_DIR ${@:2}" > ${PRODUCT_DIR}/conf/locators
+      ${PRODUCT_DIR}/sbin/snappy-locators.sh start
+      echo "Started locator "`date` >> ${PRODUCT_DIR}/work/status.log
       ;;
    lead)
-      echo $IP "${@:2}" > /opt/snappydata/conf/leads
-      $sbin/snappy-leads.sh start
+      sleep 30;
+      # yum -y -q install wget; yum clean all -y # Remove once the docker image is updated.
+      KUBE_TOKEN=$(</var/run/secrets/kubernetes.io/serviceaccount/token)
+      KUBE_CACERT="/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+      KUBE_API_URL="https://kubernetes/api/v1/namespaces/default/services/snappydata-leader/status"
+      success=1
+      while [ ${success} != 0 ]
+      do
+        sleep 2s
+        SERVICE_IP=`wget -O- -q --ca-certificate $KUBE_CACERT  --header "Authorization: Bearer $KUBE_TOKEN" ${KUBE_API_URL} | grep ip | grep -E -o "([0-9]{1,3}[\.]){3}[0-9]{1,3}"`
+        success=$?
+        echo "Success in getting IP? $success" >> ${PRODUCT_DIR}/work/status.log
+      done
+      echo "SPARK_PUBLIC_DNS=$SERVICE_IP" >> ${PRODUCT_DIR}/conf/spark-env.sh
+      echo "$HOSTNAME -dir=$WORK_DIR ${@:2}" > ${PRODUCT_DIR}/conf/leads
+      ${PRODUCT_DIR}/sbin/snappy-leads.sh start
+      echo "Started lead "`date` >> ${PRODUCT_DIR}/work/status.log
       ;;
    all)
-      $sbin/snappy-start-all.sh -client-bind-address=0.0.0.0 -prefer-netserver-ipaddress=true "${@:2}"
+      ${PRODUCT_DIR}/sbin/snappy-start-all.sh -client-bind-address=0.0.0.0 -prefer-netserver-ipaddress=true "${@:2}"
       ;;
    * )
    echo "Usage: start [server|lead|locator|all]"
