@@ -35,7 +35,6 @@ mkdir -p "$WORK_DIR"
 die() { echo "ERROR: $*" 1>&2; exit 1; }
 
 
-
 case "$1" in
    "")
       echo "Usage: start (locator|server|lead|all) [extra config]"
@@ -47,21 +46,38 @@ case "$1" in
       echo "Started locator "`date` >> ${PRODUCT_DIR}/work/status.log
       ;;
    server)
-      sleep 30;
+      COUNTER=0;
+      while ! nc -z snappydata-locator-internal 10334 > /dev/null 2>&1; do
+        echo "Waiting for locator to be online"
+        sleep 5
+        let COUNTER=COUNTER+1
+        if [ ${COUNTER} -eq 50 ]; then
+          echo "ERROR: Locator is not up"
+          exit 1
+        fi
+      done
       echo "$HOSTNAME -dir=$WORK_DIR ${@:2}" > ${PRODUCT_DIR}/conf/servers
       ${PRODUCT_DIR}/sbin/snappy-servers.sh start
       echo "Started server "`date` >> ${PRODUCT_DIR}/work/status.log
       ;;
    lead)
-      sleep 30;
-      # yum -y -q install wget; yum clean all -y # Remove once the docker image is updated.
+      COUNTER=0;
+      while ! nc -z snappydata-server 1527 > /dev/null 2>&1; do
+        echo "Waiting for servers to be online"
+        sleep 5
+        let COUNTER=COUNTER+1
+        if [ ${COUNTER} -eq 50 ]; then
+          echo "ERROR: Servers are not up"
+          exit 1
+        fi
+      done
       KUBE_TOKEN=$(</var/run/secrets/kubernetes.io/serviceaccount/token)
       KUBE_CACERT="/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
       KUBE_API_URL="https://kubernetes/api/v1/namespaces/default/services/snappydata-leader/status"
       success=1
       while [ ${success} != 0 ]
       do
-        sleep 2s
+        sleep 3s
         SERVICE_IP=`wget -O- -q --ca-certificate $KUBE_CACERT  --header "Authorization: Bearer $KUBE_TOKEN" ${KUBE_API_URL} | grep ip | grep -E -o "([0-9]{1,3}[\.]){3}[0-9]{1,3}"`
         success=$?
         echo "Success in getting IP? $success" >> ${PRODUCT_DIR}/work/status.log
@@ -75,7 +91,7 @@ case "$1" in
       ${PRODUCT_DIR}/sbin/snappy-start-all.sh -client-bind-address=0.0.0.0 -prefer-netserver-ipaddress=true "${@:2}"
       ;;
    * )
-   echo "Usage: start [server|lead|locator|all]"
+   echo "Usage: start [locator|server|lead|all]"
    die "Invalid Argument"
 esac
 

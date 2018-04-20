@@ -98,7 +98,7 @@ spec:
         livenessProbe:
           tcpSocket:
             port: 1527
-          initialDelaySeconds: 120
+          initialDelaySeconds: 80
         command: 
           - "/bin/bash"
           - "-c"
@@ -161,12 +161,13 @@ spec:
         livenessProbe:
           tcpSocket:
             port: 1527
-          initialDelaySeconds: 180
-        command: 
+#         initial delay intentionally kept large, as server waits(250 seconds) for locator to be available
+          initialDelaySeconds: 360
+        command:
           - "/bin/bash"
           - "-c"
           - >
-            yum -y -q install wget; yum clean all -y;
+            yum -y install nc wget && yum clean all -y;
             rm start;
             wget -q https://raw.githubusercontent.com/SnappyDataInc/snappy-cloud-tools/SNAP-2281/docker/start;
             chmod 744 start;
@@ -223,12 +224,13 @@ spec:
           httpGet:
             path: /
             port: 5050
-          initialDelaySeconds: 180
+#         initial delay intentionally kept large, as lead waits(250 seconds) for servers to be available
+          initialDelaySeconds: 360
         command: 
           - "/bin/bash"
           - "-c"
           - >
-            yum -y -q install wget; yum clean all -y;
+            yum -y install nc wget && yum clean all -y;
             rm start;
             wget -q https://raw.githubusercontent.com/SnappyDataInc/snappy-cloud-tools/SNAP-2281/docker/start;
             chmod 744 start;
