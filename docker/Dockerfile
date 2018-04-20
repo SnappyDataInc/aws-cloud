@@ -9,9 +9,7 @@ RUN mkdir -p /opt/snappydata
 RUN yum -y install epel-release && yum clean all -y
 RUN yum -y install nss_wrapper gettext && yum clean all -y
 RUN yum -y install curl which tar sudo openssh-server openssh-clients passwd supervisor bind-utils; yum clean all -y
-RUN yum -y install wget; yum clean all -y
-
-RUN service sshd restart
+RUN yum -y install nc wget; yum clean all -y
 
 RUN ssh-keygen -q -N "" -t rsa -f /root/.ssh/id_rsa
 RUN cp /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys

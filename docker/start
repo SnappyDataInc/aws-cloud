@@ -16,7 +16,6 @@
 # LICENSE file.
 #
 
-echo "Preparing SnappyData process start "`date` >> /opt/snappydata/work/status.log;
 cat /etc/passwd > /tmp/passwd
 echo "$(id -u):x:$(id -u):$(id -g):dynamic uid:/opt/snappydata:/bin/false" >> /tmp/passwd
 
@@ -43,7 +42,6 @@ case "$1" in
    locator)
       echo "$HOSTNAME -dir=$WORK_DIR ${@:2}" > ${PRODUCT_DIR}/conf/locators
       ${PRODUCT_DIR}/sbin/snappy-locators.sh start
-      echo "Started locator "`date` >> ${PRODUCT_DIR}/work/status.log
       ;;
    server)
       COUNTER=0;
@@ -58,7 +56,6 @@ case "$1" in
       done
       echo "$HOSTNAME -dir=$WORK_DIR ${@:2}" > ${PRODUCT_DIR}/conf/servers
       ${PRODUCT_DIR}/sbin/snappy-servers.sh start
-      echo "Started server "`date` >> ${PRODUCT_DIR}/work/status.log
       ;;
    lead)
       COUNTER=0;
@@ -80,12 +77,10 @@ case "$1" in
         sleep 3s
         SERVICE_IP=`wget -O- -q --ca-certificate $KUBE_CACERT  --header "Authorization: Bearer $KUBE_TOKEN" ${KUBE_API_URL} | grep ip | grep -E -o "([0-9]{1,3}[\.]){3}[0-9]{1,3}"`
         success=$?
-        echo "Success in getting IP? $success" >> ${PRODUCT_DIR}/work/status.log
       done
       echo "SPARK_PUBLIC_DNS=$SERVICE_IP" >> ${PRODUCT_DIR}/conf/spark-env.sh
       echo "$HOSTNAME -dir=$WORK_DIR ${@:2}" > ${PRODUCT_DIR}/conf/leads
       ${PRODUCT_DIR}/sbin/snappy-leads.sh start
-      echo "Started lead "`date` >> ${PRODUCT_DIR}/work/status.log
       ;;
    all)
       ${PRODUCT_DIR}/sbin/snappy-start-all.sh -client-bind-address=0.0.0.0 -prefer-netserver-ipaddress=true "${@:2}"
