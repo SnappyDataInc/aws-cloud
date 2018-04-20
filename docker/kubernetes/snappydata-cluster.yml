@@ -105,7 +105,7 @@ spec:
           - >
             yum -y -q install wget; yum clean all -y;
             rm -f start;
-            wget -q https://raw.githubusercontent.com/SnappyDataInc/snappy-cloud-tools/SNAP-2281/docker/start;
+            wget -q https://raw.githubusercontent.com/SnappyDataInc/snappy-cloud-tools/SNAP-2280/docker/start;
             chmod 744 start;
             /opt/snappydata/start locator;
         lifecycle:
@@ -169,7 +169,7 @@ spec:
           - >
             yum -y install nc wget && yum clean all -y;
             rm -f start;
-            wget -q https://raw.githubusercontent.com/SnappyDataInc/snappy-cloud-tools/SNAP-2281/docker/start;
+            wget -q https://raw.githubusercontent.com/SnappyDataInc/snappy-cloud-tools/SNAP-2280/docker/start;
             chmod 744 start;
             /opt/snappydata/start server -locators=snappydata-locator-internal:10334;
         lifecycle:
@@ -232,7 +232,7 @@ spec:
           - >
             yum -y install nc wget && yum clean all -y;
             rm -f start;
-            wget -q https://raw.githubusercontent.com/SnappyDataInc/snappy-cloud-tools/SNAP-2281/docker/start;
+            wget -q https://raw.githubusercontent.com/SnappyDataInc/snappy-cloud-tools/SNAP-2280/docker/start;
             chmod 744 start;
             /opt/snappydata/start lead -locators=snappydata-locator-internal:10334;
         lifecycle:

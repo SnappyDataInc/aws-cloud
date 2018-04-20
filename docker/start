@@ -78,6 +78,7 @@ case "$1" in
         SERVICE_IP=`wget -O- -q --ca-certificate $KUBE_CACERT  --header "Authorization: Bearer $KUBE_TOKEN" ${KUBE_API_URL} | grep ip | grep -E -o "([0-9]{1,3}[\.]){3}[0-9]{1,3}"`
         success=$?
       done
+      echo "Retrieved IP for service: ${SERVICE_IP}"
       echo "SPARK_PUBLIC_DNS=$SERVICE_IP" >> ${PRODUCT_DIR}/conf/spark-env.sh
       echo "$HOSTNAME -dir=$WORK_DIR ${@:2}" > ${PRODUCT_DIR}/conf/leads
       ${PRODUCT_DIR}/sbin/snappy-leads.sh start
