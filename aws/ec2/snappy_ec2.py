@@ -60,7 +60,7 @@ else:
     xrange = range
 
 
-SNAPPY_EC2_VERSION = "0.8"
+SNAPPY_EC2_VERSION = "0.8.1"
 SNAPPY_EC2_DIR = os.path.dirname(os.path.realpath(__file__))
 SNAPPY_AWS_CONF_DIR = SNAPPY_EC2_DIR + "/deploy/home/ec2-user/snappydata"
 SNAPPYDATA_UI_PORT = ""
@@ -221,7 +221,7 @@ def parse_args():
 #        help="Version of SnappyData to use: 'X.Y.Z' (default: %default)")
     parser.add_option(
         "--enterprise", action="store_true", default=False,
-        help="Use SnappyData Enterprise edition AMI from AWS Marketplace to launch the cluster. " +
+        help="(Will be supported soon) Use SnappyData Enterprise edition AMI from AWS Marketplace to launch the cluster. " +
              "Overrides --ami option. Extra charges apply. (default: %default)")
     parser.add_option(
         "--with-zeppelin", action="store_true", default=False,
@@ -316,8 +316,8 @@ def parse_args():
     (action, cluster_name) = args
 
     if opts.enterprise:
-        print("SnappyData Enterprise AMIs will soon be available on AWS Marketplace.")
-        print("Exiting the cluster %s process." % action)
+        print("SnappyData Enterprise AMIs are available on AWS Marketplace.")
+        print("These will be supported by the EC2 scripts soon. Exiting the cluster %s process." % action)
         sys.exit(1)
         print("You selected SnappyData Enterprise edition AMI to launch the cluster {c}. " +
         "It'll incur extra charges.".format(c=cluster_name))
