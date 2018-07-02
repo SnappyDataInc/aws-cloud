@@ -37,10 +37,9 @@ echo "${LEADS}" > lead_list
 FIRST_LEAD=`cat lead_list | sed -n '1p'`
 
 ZEP_VERSION="0.7.3"
-INTERPRETER_VERSION="0.7.2"
+INTERPRETER_VERSION="0.7.3"
 ZEP_DIR="zeppelin-${ZEP_VERSION}-bin-netinst"
-ZEP_URL_MIRROR="http://www-us.apache.org/dist/zeppelin/zeppelin-${ZEP_VERSION}/${ZEP_DIR}.tgz"
-ZEP_ALT_URL="http://www-eu.apache.org/dist/zeppelin/zeppelin-${ZEP_VERSION}/${ZEP_DIR}.tgz"
+ZEP_URL_MIRROR="http://archive.apache.org/dist/zeppelin/zeppelin-${ZEP_VERSION}/${ZEP_DIR}.tgz"
 ZEP_NOTEBOOKS_URL="https://github.com/SnappyDataInc/zeppelin-interpreter/raw/notes/examples/notebook"
 ZEP_NOTEBOOKS_DIR="notebook"
 PUBLIC_HOSTNAME=`wget -q -O - http://169.254.169.254/latest/meta-data/public-hostname`
@@ -50,13 +49,7 @@ if [[ ! -d ${ZEP_DIR} ]]; then
   if [[ ! -e "${ZEP_DIR}.tgz" ]]; then
     echo "Downloading Apache Zeppelin distribution..."
     wget -q "${ZEP_URL_MIRROR}"
-    # TODO while loop
-    if [ $? -ne 0 ]; then
-      # Try different mirror.
-      rm "${ZEP_DIR}.tgz"
-      wget -q "${ZEP_ALT_URL}"
-    fi
-    
+    # TODO exit if download fails
   fi
   tar -xf "${ZEP_DIR}.tgz"
 fi
@@ -79,7 +72,7 @@ if [[ ! -d ${SNAPPY_HOME_DIR} ]]; then
 fi
 
 # Download, extract and place SnappyData interpreter under interpreter/ directory
-INTERPRETER_JAR="snappydata-zeppelin-${INTERPRETER_VERSION}.jar"
+INTERPRETER_JAR="snappydata-zeppelin_2.11-${INTERPRETER_VERSION}.jar"
 INTERPRETER_URL="https://github.com/SnappyDataInc/zeppelin-interpreter/releases/download/v${INTERPRETER_VERSION}/${INTERPRETER_JAR}"
 INTERPRETER_DIR="${ZEP_DIR}/interpreter/snappydata"
 

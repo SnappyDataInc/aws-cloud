@@ -41,7 +41,7 @@ sh fetch-distribution.sh
 source ec2-variables.sh
 
 # Stop an already running cluster, if so.
-sh "${SNAPPY_HOME_DIR}/sbin/snappy-stop-all.sh"
+# sh "${SNAPPY_HOME_DIR}/sbin/snappy-stop-all.sh"
 
 echo "$LOCATORS" > locator_list
 echo "$LEADS" > lead_list
@@ -64,6 +64,15 @@ fi
 # Configure hostname-for-clients
 sed -i '/^#/ ! {/\\$/ ! { /^[[:space:]]*$/ ! s/\([^ ]*\)\(.*\)$/\1\2 -hostname-for-clients=\1/}}' "${SNAPPY_HOME_DIR}/conf/locators"
 
+echo "Created conf/locators"
+
+HEAPSTR=""
+SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=5"
+for node in ${SERVERS}; do
+    export SERVER_RAM=`ssh $SSH_OPTS "$node" "free -gt | grep Total"`
+    HEAP=`echo $SERVER_RAM | awk '{print $2}'` && HEAP=`echo $HEAP \* 0.8 / 1 | bc` && HEAPSTR="-heap-size=${HEAP}g"
+    break
+done
 
 if [[ -e leads ]]; then
   mv leads "${SNAPPY_HOME_DIR}/conf/"
@@ -71,20 +80,25 @@ else
   cp lead_list "${SNAPPY_HOME_DIR}/conf/leads"
 fi
 
-INTERPRETER_VERSION="0.7.2"
+INTERPRETER_VERSION="0.7.3"
 
 if [[ "${ZEPPELIN_HOST}" != "NONE" ]]; then
+  echo "Configuring Zeppelin interpreter properties..."
   # Add interpreter jar to snappydata's jars directory
-  INTERPRETER_JAR="snappydata-zeppelin-${INTERPRETER_VERSION}.jar"
+  INTERPRETER_JAR="snappydata-zeppelin_2.11-${INTERPRETER_VERSION}.jar"
   INTERPRETER_URL="https://github.com/SnappyDataInc/zeppelin-interpreter/releases/download/v${INTERPRETER_VERSION}/${INTERPRETER_JAR}"
-  wget -q "${INTERPRETER_URL}"
-  mv ${INTERPRETER_JAR} ${SNAPPY_HOME_DIR}/snappydata-zeppelin.jar
-  ZEPPELIN_JAR_PATH=`readlink -f ${SNAPPY_HOME_DIR}/snappydata-zeppelin.jar`
-  ZEPPELIN_JAR_PATH=`echo "$ZEPPELIN_JAR_PATH"|sed 's@/$@@'`
-
-  # Enable interpreter on lead
-  sed -i "/^#/ ! {/\\$/ ! { /^[[:space:]]*$/ ! s/$/ -zeppelin.interpreter.enable=true -classpath=${ZEPPELIN_JAR_PATH}/}}" "${SNAPPY_HOME_DIR}/conf/leads"
+  wget -q "${INTERPRETER_URL}" && mv ${INTERPRETER_JAR} ${SNAPPY_HOME_DIR}/jars/
+  INT_DOWNLOAD=`echo $?`
+  if [[ ${INT_DOWNLOAD} != 0 ]]; then
+    echo "ERROR: Could not download Zeppelin interpreter for SnappyData from ${INTERPRETER_URL}"
+    export ZEPPELIN_HOST="NONE"
+  else
+    # Enable interpreter on lead
+    sed -i "/^#/ ! {/\\$/ ! { /^[[:space:]]*$/ ! s/$/ -zeppelin.interpreter.enable=true /}}" "${SNAPPY_HOME_DIR}/conf/leads"
+  fi
 fi
+
+sed -i "/^#/ ! {/\\$/ ! { /^[[:space:]]*$/ ! s/$/ ${HEAPSTR}/}}" "${SNAPPY_HOME_DIR}/conf/leads"
 
 if [[ -e servers ]]; then
   mv servers "${SNAPPY_HOME_DIR}/conf/"
@@ -92,8 +106,10 @@ else
   cp server_list "${SNAPPY_HOME_DIR}/conf/servers"
 fi
 
-# Configure hostname-for-clients
+# Configure hostname-for-clients and heap memory
 sed -i '/^#/ ! {/\\$/ ! { /^[[:space:]]*$/ ! s/\([^ ]*\)\(.*\)$/\1\2 -hostname-for-clients=\1/}}' "${SNAPPY_HOME_DIR}/conf/servers"
+sed -i "/^#/ ! {/\\$/ ! { /^[[:space:]]*$/ ! s/$/ ${HEAPSTR}/}}" "${SNAPPY_HOME_DIR}/conf/servers"
+echo "Created conf/servers"
 
 # Set SPARK_DNS_HOST to public hostname of first lead so that SnappyData Pulse UI links work fine.
 SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=5"
@@ -102,6 +118,7 @@ for node in ${LEADS}; do
     break
 done
 echo "SPARK_PUBLIC_DNS=${LEAD_DNS_NAME}" >> ${SNAPPY_HOME_DIR}/conf/spark-env.sh
+echo "Set SPARK_PUBLIC_DNS to ${LEAD_DNS_NAME}"
 
 OTHER_LOCATORS=`cat locator_list | sed '1d'`
 echo "$OTHER_LOCATORS" > other-locators

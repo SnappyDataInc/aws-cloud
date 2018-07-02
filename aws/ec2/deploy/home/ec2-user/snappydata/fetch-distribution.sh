@@ -35,7 +35,7 @@ extract() {
 }
 
 getLatestUrl() {
-  URL="https://github.com/SnappyDataInc/snappydata/releases/download/v1.0.0/snappydata-1.0.0-bin.tar.gz"
+  URL="https://github.com/SnappyDataInc/snappydata/releases/download/v1.0.1/snappydata-1.0.1-bin.tar.gz"
 }
 
 SNAPPY_HOME_DIR="snappydata-${SNAPPYDATA_VERSION}-bin"
