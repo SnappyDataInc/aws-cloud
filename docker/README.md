@@ -54,24 +54,23 @@ Before you begin, ensure that:
  
   ```
  $ docker logs snappydata
- starting sshd service
- Starting sshd:
-  [ OK ]
- Starting SnappyData Locator using peer discovery on: localhost[10334]
- Starting DRDA server for SnappyData at address localhost/127.0.0.1[1527]
- Logs generated in /opt/snappydata/work/localhost-locator-1/snappylocator.log
- SnappyData Locator pid: 110 status: running
- Starting SnappyData Server using locators for peer discovery: localhost:10334
- Starting DRDA server for SnappyData at address localhost/127.0.0.1[1527]
- Logs generated in /opt/snappydata/work/localhost-server-1/snappyserver.log
- SnappyData Server pid: 266 status: running
- Distributed system now has 2 members.
- Other members: localhost(110:locator)<v0>:63369
- Starting SnappyData Leader using locators for peer discovery: localhost:10334
- Logs generated in /opt/snappydata/work/localhost-lead-1/snappyleader.log
- SnappyData Leader pid: 440 status: running
- Distributed system now has 3 members.
- Other members: 192.168.1.130(266:datastore)<v1>:47290, localhost(110:locator)<v0>:63369
+Starting sshd service
+Generating SSH2 RSA host key:                              [  OK  ]
+Generating SSH1 RSA host key:                              [  OK  ]
+Generating SSH2 DSA host key:                              [  OK  ]
+Starting sshd:                                             [  OK  ]
+Logs generated in /opt/snappydata/work/localhost-locator-1/snappylocator.log
+SnappyData Locator pid: 131 status: running
+  Distributed system now has 1 members.
+  Started Thrift locator (Compact Protocol) on: localhost/127.0.0.1[1527]
+Logs generated in /opt/snappydata/work/localhost-server-1/snappyserver.log
+SnappyData Server pid: 267 status: running
+  Distributed system now has 2 members.
+  Started Thrift server (Compact Protocol) on: localhost/127.0.0.1[1528]
+Logs generated in /opt/snappydata/work/localhost-lead-1/snappyleader.log
+SnappyData Leader pid: 420 status: running
+  Distributed system now has 3 members.
+  Starting job server on: 0.0.0.0[8090]
  ```
  The query results display *Distributed system now has 3 members*.
 
@@ -90,23 +89,30 @@ Before you begin, ensure that:
 
  ```
  snappy> show connections;
- CONNECTION0* -
-  jdbc:gemfirexd://localhost[1527]/
+ CONNECTION0* - 	jdbc:snappydata:thrift://localhost[1527]
  * = current connection
  ```
 8. **Check Member Status**
 
  ```
  snappy> show members;
+ ID                                  |HOST                          |KIND                          |STATUS              |THRIFTSERVERS                 |SERVERGROUPS                  
+ -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ 127.0.0.1(131:locator)<ec><v0>:37815|localhost                     |locator(normal)               |RUNNING             |localhost/127.0.0.1[1527]     |                              
+ 127.0.0.1(267)<v1>:13054            |localhost                     |datastore(normal)             |RUNNING             |localhost/127.0.0.1[1528]     |                              
+ 127.0.0.1(420)<v2>:6067             |localhost                     |accessor(normal)              |RUNNING             |                              |IMPLICIT_LEADER_SERVERGROUP   
+ 
+ 3 rows selected
  ```
+Use Ctrl+D to exit the shell.
 
 9. **Stop the Cluster**
 
  ```
  $ docker exec -it snappydata ./sbin/snappy-stop-all.sh
- The SnappyData Leader has stopped.
- The SnappyData Server has stopped.
- The SnappyData Locator has stopped.
+ The SnappyData Leader on 192.168.1.12(localhost-lead-1) has stopped.
+ The SnappyData Server on 192.168.1.12(localhost-server-1) has stopped.
+ The SnappyData Locator on 192.168.1.12(localhost-locator-1) has stopped.
  ```
 
 10. **Stop SnappyData Container**
@@ -118,7 +124,12 @@ Before you begin, ensure that:
 
 ## Using Multiple Containers with Docker Compose
 
-**NOTE:** The latest Docker image has not been tested with Docker Compose. We recommend [using Helm charts to launch SnappyData cluster](https://github.com/SnappyDataInc/spark-on-k8s/tree/master/charts/snappydata) on Kubernetes.
+**NOTE:**
+```
+The latest Docker image has not been tested with Docker Compose.
+We recommend using Helm charts to launch SnappyData cluster on Kubernetes.
+Please visit https://github.com/SnappyDataInc/spark-on-k8s/tree/master/charts/snappydata
+```
 
 Download and install the latest version of Docker compose. Refer to the [Docker documentation](https://docs.docker.com/compose/install/) for more information.
 
@@ -248,7 +259,12 @@ $ docker-compose ps
 
 ## Run SnappyData on Docker Cloud
 
-**NOTE:** The latest Docker image has not been tested on Docker Cloud. We recommend [using Helm charts to launch SnappyData cluster](https://github.com/SnappyDataInc/spark-on-k8s/tree/master/charts/snappydata) on Kubernetes.
+**NOTE:**
+```
+The latest Docker image has not been tested with Docker Cloud.
+We recommend using Helm charts to launch SnappyData cluster on Kubernetes.
+Please visit https://github.com/SnappyDataInc/spark-on-k8s/tree/master/charts/snappydata
+```
 
 Docker Cloud is Docker's official platform for building, managing and deploying Docker containers across a variety of Cloud providers. It also provides features ideal for development workflows.
 
@@ -332,6 +348,13 @@ NOTE: The above document provides you basic instructions to set up a cluster usi
 <hr>
 
 ## SnappyData With Docker Swarm
+
+**NOTE:**
+```
+The latest Docker image has not been tested with Docker Swarm.
+We recommend using Helm charts to launch SnappyData cluster on Kubernetes.
+Please visit https://github.com/SnappyDataInc/spark-on-k8s/tree/master/charts/snappydata
+```
 
 This article explains how to setup multi-host SnappyData cluster using Docker Swarm, Docker Machine, and Docker Compose.
 

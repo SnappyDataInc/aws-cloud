@@ -37,7 +37,7 @@ echo "${LEADS}" > lead_list
 FIRST_LEAD=`cat lead_list | sed -n '1p'`
 
 ZEP_VERSION="0.7.3"
-INTERPRETER_VERSION="0.7.3"
+INTERPRETER_VERSION="0.7.3.2"
 ZEP_DIR="zeppelin-${ZEP_VERSION}-bin-netinst"
 ZEP_URL_MIRROR="http://archive.apache.org/dist/zeppelin/zeppelin-${ZEP_VERSION}/${ZEP_DIR}.tgz"
 ZEP_NOTEBOOKS_URL="https://github.com/SnappyDataInc/zeppelin-interpreter/raw/notes/examples/notebook"
@@ -50,6 +50,10 @@ if [[ ! -d ${ZEP_DIR} ]]; then
     echo "Downloading Apache Zeppelin distribution..."
     wget -q "${ZEP_URL_MIRROR}"
     # TODO exit if download fails
+    if [[ $? -ne 0 ]]; then
+      echo "Could not download Apache Zeppelin distribution. Apache Zeppelin server will not be available."
+      exit 3
+    fi
   fi
   tar -xf "${ZEP_DIR}.tgz"
 fi
