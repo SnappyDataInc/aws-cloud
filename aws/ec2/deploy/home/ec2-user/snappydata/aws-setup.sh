@@ -80,7 +80,7 @@ else
   cp lead_list "${SNAPPY_HOME_DIR}/conf/leads"
 fi
 
-INTERPRETER_VERSION="0.7.3"
+INTERPRETER_VERSION="0.7.3.2"
 
 if [[ "${ZEPPELIN_HOST}" != "NONE" ]]; then
   echo "Configuring Zeppelin interpreter properties..."

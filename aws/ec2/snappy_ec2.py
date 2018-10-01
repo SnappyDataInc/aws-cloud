@@ -67,6 +67,7 @@ SNAPPYDATA_UI_PORT = ""
 LOCATOR_CLIENT_PORT = "1527"
 
 DEFAULT_SNAPPY_VERSION = "LATEST"
+DEFAULT_SNAPPY_BINARY = "https://github.com/SnappyDataInc/snappydata/releases/download/v1.0.2/snappydata-1.0.2-bin.tar.gz"
 
 # Amazon Linux AMIs 2016.09 for EBS-backed HVM
 HVM_AMI_MAP = {
@@ -216,6 +217,9 @@ def parse_args():
     parser.add_option(
         "-a", "--ami",
         help="Amazon Machine Image ID to use")
+    parser.add_option(
+        "--snappydata-tarball", default=DEFAULT_SNAPPY_BINARY,
+        help="URL of SnappyData Binary tarball to use for launching the cluster (default: %default)")
 #    parser.add_option(
 #        "-v", "--snappydata-version", default=DEFAULT_SNAPPY_VERSION,
 #        help="Version of SnappyData to use: 'X.Y.Z' (default: %default)")
@@ -1197,6 +1201,7 @@ def deploy_files(conn, root_dir, opts, locator_nodes, lead_nodes, server_nodes, 
         template_vars["aws_secret_access_key"] = ""
 
     template_vars["locator_client_port"] = LOCATOR_CLIENT_PORT
+    template_vars["snappydata-tarball-url"] = opts.snappydata_tarball
 
     # Create a temp directory in which we will place all the files to be
     # deployed after we substitue template parameters in them
