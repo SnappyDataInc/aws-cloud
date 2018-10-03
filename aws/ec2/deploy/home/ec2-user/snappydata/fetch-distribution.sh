@@ -18,8 +18,7 @@
 
 extract() {
   TAR_NAME=`basename ${URL}`
-  DIR_NAME=`echo ${TAR_NAME%.tar.gz}`\
-  DIR_NO_BIN_NAME=`echo ${DIR_NAME%-bin}`
+  # DIR_NO_BIN_NAME=`echo ${DIR_NAME%-bin}`
 
   if [[ ! -d ${SNAPPY_HOME_DIR} ]]; then
     # Download and extract the distribution tar
@@ -29,6 +28,7 @@ extract() {
       echo "SnappyData distribution could not be downloaded successfully. But EC2 instances may still be running."
       exit 2
     fi
+    DIR_NAME=`tar -tf "${TAR_NAME}" | head -1 | cut -d "/" -f1`
     tar -xf "${TAR_NAME}"
     rm -f "${TAR_NAME}" releases latest
 
@@ -75,4 +75,4 @@ else
   echo "SnappyData distribution already present."
 fi
 
-echo -e "export SNAPPY_HOME_DIR=${SNAPPY_HOME_DIR}" >> ec2-variables.sh
+echo -e "\nexport SNAPPY_HOME_DIR=${SNAPPY_HOME_DIR}" >> ec2-variables.sh

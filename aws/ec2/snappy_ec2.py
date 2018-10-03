@@ -50,6 +50,7 @@ import warnings
 from datetime import datetime
 from optparse import OptionParser
 from sys import stderr
+import requests
 
 if sys.version < "3":
     from urllib2 import urlopen, Request, HTTPError
@@ -238,10 +239,11 @@ def parse_args():
         help="Amazon Machine Image ID to use")
     parser.add_option(
         "--snappydata-tarball", default=DEFAULT_SNAPPY_BINARY,
-        help="URL of the SnappyData distribution with which the cluster will be launched (default: %default)")
-    parser.add_option(
-        "-b", "--private-build", default="",
-        help="Launch cluster using the specified local build (.tar.gz) of SnappyData.")
+        help="HTTP URL or local file path of the SnappyData distribution tarball with which the " +
+             "cluster will be launched. (default: %default)")
+    # parser.add_option(
+    #     "-b", "--private-build", default="",
+    #     help="Launch cluster using the specified local build (.tar.gz) of SnappyData.")
     parser.add_option(
         "--locator-conf", default="",
         help="Configuration properties for locators (default: %default)")
@@ -251,13 +253,13 @@ def parse_args():
     parser.add_option(
         "--lead-conf", default="",
         help="Configuration properties for leads (default: %default)")
-#    parser.add_option(
-#        "-v", "--snappydata-version", default=DEFAULT_SNAPPY_VERSION,
-#        help="Version of SnappyData to use: 'X.Y.Z' (default: %default)")
     parser.add_option(
-        "--enterprise", action="store_true", default=False,
-        help="(Will be supported soon) Use SnappyData Enterprise edition AMI from AWS Marketplace to launch the cluster. " +
-             "Overrides --ami option. Extra charges apply. (default: %default)")
+        "-v", "--snappydata-version", default=DEFAULT_SNAPPY_VERSION,
+        help="Version of SnappyData to use: 'X.Y.Z' (default: %default)")
+    # parser.add_option(
+    #     "--enterprise", action="store_true", default=False,
+    #     help="(Not supported yet) Use SnappyData Enterprise edition AMI from AWS Marketplace to launch the cluster. " +
+    #          "Overrides --ami option. Extra charges apply. (default: %default)")
     parser.add_option(
         "--with-zeppelin", action="store_true", default=False,
         help="Launch Apache Zeppelin server with the cluster." + 
@@ -305,7 +307,7 @@ def parse_args():
         "-u", "--user", default="ec2-user",
         help="The SSH user you want to connect as (default: %default)")
     parser.add_option(
-        "--delete-groups", action="store_true", default=False,
+        "--delete-groups", action="store_true", default=True,
         help="When destroying a cluster, delete the security groups that were created")
     parser.add_option(
         "--use-existing-locator", action="store_true", default=False,
@@ -350,18 +352,18 @@ def parse_args():
         sys.exit(1)
     (action, cluster_name) = args
 
-    if opts.enterprise:
-        print("SnappyData Enterprise AMIs are available on AWS Marketplace.")
-        print("These will be supported by the EC2 scripts soon. Exiting the cluster %s process." % action)
-        sys.exit(1)
-        print("You selected SnappyData Enterprise edition AMI to launch the cluster {c}. " +
-        "It'll incur extra charges.".format(c=cluster_name))
-        print("Please read the terms of service here: http://www.snappydata.io/download/eula\n")
-        msg = "Enter y to continue if you have read and agree to above terms of service (y/N): "
-        response = raw_input(msg)
-        if response != "y":
-            print("Exiting the cluster launch process.")
-            sys.exit(1)
+    # if opts.enterprise:
+    #     print("SnappyData Enterprise AMIs are available on AWS Marketplace.")
+    #     print("These will be supported by the EC2 scripts soon. Exiting the cluster %s process." % action)
+    #     sys.exit(1)
+    #     print("You selected SnappyData Enterprise edition AMI to launch the cluster {c}. " +
+    #     "It'll incur extra charges.".format(c=cluster_name))
+    #     print("Please read the terms of service here: http://www.snappydata.io/download/eula\n")
+    #     msg = "Enter y to continue if you have read and agree to above terms of service (y/N): "
+    #     response = raw_input(msg)
+    #     if response != "y":
+    #         print("Exiting the cluster launch process.")
+    #         sys.exit(1)
 
     # Boto config check
     # http://boto.cloudhackers.com/en/latest/boto_config_tut.html
@@ -379,11 +381,38 @@ def parse_args():
                           file=stderr)
                     sys.exit(1)
 
-    if opts.with_zeppelin:
+    # if opts.with_zeppelin:
         # print("Option --with-zeppelin specified. The latest SnappyData version will be used.")
-        opts.snappydata_version = "LATEST"
+        # opts.snappydata_version = "LATEST"
+
+    if opts.snappydata_tarball != "":
+        if not opts.snappydata_tarball.endswith(".tar.gz"):
+            print("The tarball format not recognised. It must be built with snappydata's gradle "
+                  + "tasks: 'distProduct' or 'distTar'. Exiting.")
+            sys.exit(1)
+        if opts.snappydata_tarball.startswith("/"):
+            if not os.path.isfile(opts.snappydata_tarball):
+                print("Provided path of the snappydata tarball (%s) is not valid. Exiting." % opts.snappydata_tarball)
+                sys.exit(1)
+        elif opts.snappydata_tarball.startswith("http"):
+            if not url_exists(opts.snappydata_tarball):
+                print("Provided url of the snappydata tarball (%s) is not accessible. Exiting." % opts.snappydata_tarball)
+                sys.exit(1)
+        else:
+            print("Provided path of the snappydata tarball (%s) not recognized. Exiting." % opts.snappydata_tarball)
+            sys.exit(1)
+
+    if opts.snappydata_version.startswith("0."):
+        print("Versions prior to 1.0.0 not supported.")
+        sys.exit(1)
 
     return (opts, action, cluster_name)
+
+
+def url_exists(path):
+    r = requests.head(path)
+    return r.status_code == requests.codes.ok
+    # Check also for requests.codes.moved and requests.codes.found?
 
 
 # Get the EC2 security group of the given name, creating it if it doesn't exist
@@ -466,12 +495,12 @@ def get_ami(opts):
         instance_type = "hvm"
         print("Don't recognize %s, assuming virtualization type is hvm" % opts.instance_type, file=stderr)
 
-    if opts.enterprise:
-        ami = SNAPPYDATA_AMI_MAP[opts.region]
-        print("Found SnappyData Enterprise AMI: " + ami)
-    else:
-        ami = HVM_AMI_MAP[opts.region]
-        print("Found AMI: " + ami)
+    # if opts.enterprise:
+    #     ami = SNAPPYDATA_AMI_MAP[opts.region]
+    #     print("Found SnappyData Enterprise AMI: " + ami)
+    # else:
+    ami = HVM_AMI_MAP[opts.region]
+    print("Found AMI: " + ami)
     return ami
 
 
@@ -672,7 +701,7 @@ def launch_cluster(conn, opts, cluster_name):
 
     # Figure out the AMI
     # TODO User provided AMI may not work.
-    if opts.ami is None or opts.enterprise:
+    if opts.ami is None: # or opts.enterprise:
         opts.ami = get_ami(opts)
 
     # we use group ids to work around https://github.com/boto/boto/issues/350
@@ -1241,7 +1270,10 @@ def deploy_files(conn, root_dir, opts, locator_nodes, lead_nodes, server_nodes, 
         template_vars["aws_secret_access_key"] = ""
 
     template_vars["locator_client_port"] = LOCATOR_CLIENT_PORT
-    template_vars["snappydata-tarball-url"] = opts.snappydata_tarball
+    if opts.snappydata_tarball != "" and opts.snappydata_tarball.startswith("http"):
+        template_vars["snappydata-tarball-url"] = opts.snappydata_tarball
+    else:
+        template_vars["snappydata-tarball-url"] = ""
 
     # Create a temp directory in which we will place all the files to be
     # deployed after we substitue template parameters in them
@@ -1267,16 +1299,12 @@ def deploy_files(conn, root_dir, opts, locator_nodes, lead_nodes, server_nodes, 
                                 text = text.replace("{{LEAD_" + str(idx) + "}}", lead_addresses[idx])
                             for idx in range(len(server_nodes)):
                                 text = text.replace("{{SERVER_" + str(idx) + "}}", server_addresses[idx])
-                            if opts.enterprise:
+                            if False: # opts.enterprise:
                                 text = text.replace("{{snappydata_version}}", "ENT")
                             else:
-                                text = text.replace("{{snappydata_version}}", "LATEST")
-                            # Ignore if supplied distribution name is not in the format 'snappydata*.tar.gz'
-                            # and opts.private_build.startswith("snappydata") \
-                            if opts.private_build != "" \
-                                    and opts.private_build.endswith(".tar.gz") \
-                                    and os.path.isfile(opts.private_build):
-                                text = text.replace("{{private_build_path}}", opts.private_build)
+                                text = text.replace("{{snappydata_version}}", opts.snappydata_version)
+                            if opts.snappydata_tarball.startswith("/"):
+                                text = text.replace("{{private_build_path}}", opts.snappydata_tarball)
                             else:
                                 text = text.replace("{{private_build_path}}", 'NONE')
                             dest.write(text)
@@ -1289,12 +1317,12 @@ def deploy_files(conn, root_dir, opts, locator_nodes, lead_nodes, server_nodes, 
         "%s@%s:/" % (opts.user, active_locator)
     ]
     subprocess.check_call(command)
-    if opts.private_build != "" and os.path.isfile(opts.private_build):
+    if opts.snappydata_tarball.startswith("/"):
         cmd = [
             'rsync', '-v',
             '-e', stringify_command(ssh_command(opts)),
-            "%s" % opts.private_build,
-            "%s@%s:/home/%s/" % (opts.user, active_locator, opts.user)
+            "%s" % opts.snappydata_tarball,
+            "%s@%s:/home/%s/snappydata/" % (opts.user, active_locator, opts.user)
         ]
         print("Copying your local SnappyData tarball to AWS...")
         subprocess.check_call(cmd)

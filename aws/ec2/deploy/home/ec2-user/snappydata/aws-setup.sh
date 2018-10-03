@@ -21,9 +21,10 @@ pushd /home/ec2-user/snappydata > /dev/null
 source ec2-variables.sh
 
 # Check if enterprise version to be used.
+# TODO Decide if it's to be supported. More work needed below, if yes.
 if [[ "${SNAPPYDATA_VERSION}" = "ENT" ]]; then
   echo "Setting up the cluster with SnappyData Enterprise edition ..."
-  sh ent-aws-setup.sh
+  bash ent-aws-setup.sh
   ENT_SETUP=`echo $?`
   popd > /dev/null
   exit ${ENT_SETUP}
@@ -35,7 +36,7 @@ sudo yum -y -q install java-1.8.0-openjdk-devel
 # Download and extract the appropriate distribution.
 # sh fetch-distribution.sh
 if [[ "${PRIVATE_BUILD_PATH}" = "NONE" ]]; then
-  sh fetch-distribution.sh
+  bash fetch-distribution.sh
   if [[ "$?" != 0 ]]; then
     exit 2
   fi
@@ -45,14 +46,22 @@ else
   if [[ -d ${SNAPPY_HOME_DIR}/work ]] ; then
     mv "${SNAPPY_HOME_DIR}/work" /tmp
   fi
-  rm -rf temp-dir && mkdir temp-dir
-  tar -C temp-dir -xf "${PRIVATE_BUILD_PATH}"
-  TEMP_DIR=`ls temp-dir`
-  sudo rm -rf "${SNAPPY_HOME_DIR}"
-  sudo mv temp-dir/${TEMP_DIR} "${SNAPPY_HOME_DIR}"
+  PRIVATE_BUILD_FILE=`basename "${PRIVATE_BUILD_PATH}"`
+  UNTARRED_DIR=`tar -tf "${PRIVATE_BUILD_FILE}" | head -1 | cut -d "/" -f1`
+  echo "Name of the extracted directory of snappydata tarball would be ${UNTARRED_DIR}"
+  tar -xf "${PRIVATE_BUILD_FILE}"
+  if [[ $? != 0 ]]; then
+    echo "Could not extract the provided snappydata tarball. Exiting."
+    echo "    WARNING: Your EC2 instances may still be running!"
+    exit 2
+  fi
+  sudo rm -rf "${SNAPPY_HOME_DIR}" && sudo mv "${UNTARRED_DIR}" "${SNAPPY_HOME_DIR}"
   if [[ -d /tmp/work ]] ; then
     rm -rf "${SNAPPY_HOME_DIR}/work"
     mv /tmp/work "${SNAPPY_HOME_DIR}/"
+    if [[ $? = 0 ]]; then
+      echo "Restored the previous cluster instance's metadata."
+    fi
   fi
   sudo chown -R ec2-user:ec2-user "${SNAPPY_HOME_DIR}"
   echo -e "export SNAPPY_HOME_DIR=${SNAPPY_HOME_DIR}" >> ec2-variables.sh
@@ -62,8 +71,9 @@ fi
 source ec2-variables.sh
 
 if [[ ! -d "${SNAPPY_HOME_DIR}" ]]; then
-  echo "Could not set up SnappyData product directory, exiting. But EC2 instances may still be running."
-  exit 1
+  echo "Could not set up SnappyData product directory, exiting."
+  echo "    WARNING: Your EC2 instances may still be running!"
+  exit 2
 fi
 # Stop an already running cluster, if so.
 # sh "${SNAPPY_HOME_DIR}/sbin/snappy-stop-all.sh"
@@ -84,8 +94,8 @@ fi
 sed "s/^/ -hostname-for-clients=/" locator_list > locator_hostnames_list
 sed "s/^/ -hostname-for-clients=/" server_list > server_hostnames_list
 
-paste locator_private_list locator_hostnames_list > "${SNAPPY_HOME_DIR}/conf/locators"
-paste server_private_list server_hostnames_list > "${SNAPPY_HOME_DIR}/conf/servers"
+paste -d '' locator_private_list locator_hostnames_list > "${SNAPPY_HOME_DIR}/conf/locators"
+paste -d '' server_private_list server_hostnames_list > "${SNAPPY_HOME_DIR}/conf/servers"
 cat lead_private_list > "${SNAPPY_HOME_DIR}/conf/leads"
 
 sed -i "/^#/ ! {/\\$/ ! { /^[[:space:]]*$/ ! s/$/ ${LOCATOR_CONF}/}}" "${SNAPPY_HOME_DIR}/conf/locators"
@@ -114,8 +124,6 @@ if [[ ${HAS_MEMORY_SIZE} != 0 ]]; then
   sed -i "/^#/ ! {/\\$/ ! { /^[[:space:]]*$/ ! s/$/ ${HEAPSTR}/}}" "${SNAPPY_HOME_DIR}/conf/servers"
 fi
 
-INTERPRETER_VERSION="0.7.3.2"
-
 if [[ "${ZEPPELIN_HOST}" != "NONE" ]]; then
   echo "Configuring Zeppelin interpreter properties..."
   # Add interpreter jar to snappydata's jars directory
@@ -139,7 +147,7 @@ for node in ${LEADS}; do
   break
 done
 echo "SPARK_PUBLIC_DNS=${LEAD_DNS_NAME}" >> ${SNAPPY_HOME_DIR}/conf/spark-env.sh
-echo "Set SPARK_PUBLIC_DNS to ${LEAD_DNS_NAME}"
+echo "SPARK_PUBLIC_DNS set to ${LEAD_DNS_NAME}"
 
 OTHER_LOCATORS=`cat locator_list | sed '1d'`
 echo "$OTHER_LOCATORS" > other-locators
@@ -163,7 +171,12 @@ for node in ${ALL_NODES}; do
 done
 
 # Launch the SnappyData cluster
-sh "${SNAPPY_HOME_DIR}/sbin/snappy-start-all.sh"
+bash "${SNAPPY_HOME_DIR}/sbin/snappy-start-all.sh"
+if [[ $? != 0 ]]; then
+  echo "Cluster start did not succeed."
+  echo "    WARNING: Your EC2 instances may still be running!"
+  exit 2
+fi
 
 # Setup and launch zeppelin, if configured.
 if [[ "${ZEPPELIN_HOST}" != "NONE" ]]; then

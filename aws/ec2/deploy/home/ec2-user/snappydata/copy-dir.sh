@@ -70,6 +70,6 @@ SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=5"
 
 for node in $HOSTS; do
     echo "$2:  RSYNC'ing $1  to  $node:$DEST"
-    rsync -e "ssh $SSH_OPTS" -az $DELETE_FLAG --exclude=ec2-* "$DIR" "$node:$DEST" & sleep 0.5
+    rsync -e "ssh $SSH_OPTS" -az $DELETE_FLAG --exclude=ec2-* --rsync-path="sudo rsync" "$DIR" "$node:$DEST" & sleep 0.5
 done
 wait
