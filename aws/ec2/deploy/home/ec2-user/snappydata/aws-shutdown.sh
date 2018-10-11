@@ -20,9 +20,10 @@ pushd /home/ec2-user/snappydata > /dev/null
 
 source ec2-variables.sh
 
-if [[ -z ${SNAPPY_HOME_DIR} ]]; then
-  echo "The SnappyData cluster may not have been started using the snappy-ec2 script.\n"
-  echo "Could not shutdown the cluster as its home directory not found."
+if [[ ! -d ${SNAPPY_HOME_DIR} ]]; then
+  echo "The SnappyData cluster may not have been started using the snappy-ec2 script."
+  echo "Could not shutdown the cluster as its product directory not found."
+  exit 2
 else
   # Shutdown the SnappyData cluster
   sh "${SNAPPY_HOME_DIR}/sbin/snappy-stop-all.sh"

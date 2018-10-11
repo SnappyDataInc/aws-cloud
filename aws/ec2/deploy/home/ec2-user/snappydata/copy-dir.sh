@@ -66,7 +66,7 @@ DEST=`dirname "$DIR"`
 
 HOSTS=`cat "$2"`
 
-SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=5"
+SSH_OPTS="-o StrictHostKeyChecking=no -o LogLevel=error -o ConnectTimeout=5"
 
 for node in $HOSTS; do
     echo "$2:  RSYNC'ing $1  to  $node:$DEST"

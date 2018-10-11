@@ -20,8 +20,22 @@ pushd /home/ec2-user/snappydata > /dev/null
 
 source ec2-variables.sh
 
-# Check if enterprise version to be used.
-# TODO Decide if it's to be supported. More work needed below, if yes.
+echo "$LOCATORS" > locator_list
+echo "$LEADS" > lead_list
+echo "$SERVERS" > server_list
+echo "$LOCATOR_PRIVATE_IPS" > locator_private_list
+echo "$LEAD_PRIVATE_IPS" > lead_private_list
+echo "$SERVER_PRIVATE_IPS" > server_private_list
+
+echo "$ZEPPELIN_HOST" > zeppelin_server
+OTHER_LOCATORS=`cat locator_list | sed '1d'`
+echo "$OTHER_LOCATORS" > other-locators
+ALL_NODES=( "${OTHER_LOCATORS} ${LEADS} ${SERVERS}" )
+SNAPPY_HOME_DIR=/opt/snappydata
+SSH_OPTS="-o StrictHostKeyChecking=no -o LogLevel=error"
+
+# Check if enterprise version is to be setup.
+# TODO More work needed below, if this needs to be supported. Currently, check fails always.
 if [[ "${SNAPPYDATA_VERSION}" = "ENT" ]]; then
   echo "Setting up the cluster with SnappyData Enterprise edition ..."
   bash ent-aws-setup.sh
@@ -33,38 +47,32 @@ fi
 sudo yum -y -q remove  jre-1.7.0-openjdk
 sudo yum -y -q install java-1.8.0-openjdk-devel
 
-# Download and extract the appropriate distribution.
-# sh fetch-distribution.sh
-if [[ "${PRIVATE_BUILD_PATH}" = "NONE" ]]; then
-  bash fetch-distribution.sh
-  if [[ "$?" != 0 ]]; then
-    exit 2
-  fi
-else
-  SNAPPY_HOME_DIR=/opt/snappydata
-  # Take backup of work/ directory
-  if [[ -d ${SNAPPY_HOME_DIR}/work ]] ; then
-    mv "${SNAPPY_HOME_DIR}/work" /tmp
-  fi
-  PRIVATE_BUILD_FILE=`basename "${PRIVATE_BUILD_PATH}"`
-  UNTARRED_DIR=`tar -tf "${PRIVATE_BUILD_FILE}" | head -1 | cut -d "/" -f1`
-  echo "Name of the extracted directory of snappydata tarball would be ${UNTARRED_DIR}"
-  tar -xf "${PRIVATE_BUILD_FILE}"
-  if [[ $? != 0 ]]; then
-    echo "Could not extract the provided snappydata tarball. Exiting."
-    echo "    WARNING: Your EC2 instances may still be running!"
-    exit 2
-  fi
-  sudo rm -rf "${SNAPPY_HOME_DIR}" && sudo mv "${UNTARRED_DIR}" "${SNAPPY_HOME_DIR}"
-  if [[ -d /tmp/work ]] ; then
-    rm -rf "${SNAPPY_HOME_DIR}/work"
-    mv /tmp/work "${SNAPPY_HOME_DIR}/"
-    if [[ $? = 0 ]]; then
-      echo "Restored the previous cluster instance's metadata."
+# TODO support cluster upgrade feature
+
+SETUP_EXISTS="true"
+
+# Fetch the tarball only if snappydata is not already present.
+if [[ ! -d "${SNAPPY_HOME_DIR}" ]]; then
+  SETUP_EXISTS="false"
+  # Download and extract the appropriate distribution.
+  if [[ "${PRIVATE_BUILD_PATH}" = "NONE" ]]; then
+    bash fetch-distribution.sh
+    if [[ "$?" != 0 ]]; then
+      exit 2
     fi
+  else
+    PRIVATE_BUILD_FILE=`basename "${PRIVATE_BUILD_PATH}"`
+    UNTARRED_DIR=`tar -tf "${PRIVATE_BUILD_FILE}" | head -1 | cut -d "/" -f1`
+    echo "Name of the extracted directory of snappydata tarball would be ${UNTARRED_DIR}"
+    tar -xf "${PRIVATE_BUILD_FILE}"
+    if [[ $? != 0 ]]; then
+      echo "Could not extract the provided snappydata tarball. Exiting."
+      echo "    WARNING: Your EC2 instances may still be running!"
+      exit 2
+    fi
+    sudo rm -rf "${SNAPPY_HOME_DIR}" && sudo mv "${UNTARRED_DIR}" "${SNAPPY_HOME_DIR}"
+    echo -e "export SNAPPY_HOME_DIR=${SNAPPY_HOME_DIR}" >> ec2-variables.sh
   fi
-  sudo chown -R ec2-user:ec2-user "${SNAPPY_HOME_DIR}"
-  echo -e "export SNAPPY_HOME_DIR=${SNAPPY_HOME_DIR}" >> ec2-variables.sh
 fi
 
 # Do it again to read new variables.
@@ -78,15 +86,6 @@ fi
 # Stop an already running cluster, if so.
 # sh "${SNAPPY_HOME_DIR}/sbin/snappy-stop-all.sh"
 
-echo "$LOCATORS" > locator_list
-echo "$LEADS" > lead_list
-echo "$SERVERS" > server_list
-echo "$LOCATOR_PRIVATE_IPS" > locator_private_list
-echo "$LEAD_PRIVATE_IPS" > lead_private_list
-echo "$SERVER_PRIVATE_IPS" > server_private_list
-
-echo "$ZEPPELIN_HOST" > zeppelin_server
-
 if [[ -e snappy-env.sh ]]; then
   mv snappy-env.sh "${SNAPPY_HOME_DIR}/conf/"
 fi
@@ -94,34 +93,58 @@ fi
 sed "s/^/ -hostname-for-clients=/" locator_list > locator_hostnames_list
 sed "s/^/ -hostname-for-clients=/" server_list > server_hostnames_list
 
-paste -d '' locator_private_list locator_hostnames_list > "${SNAPPY_HOME_DIR}/conf/locators"
-paste -d '' server_private_list server_hostnames_list > "${SNAPPY_HOME_DIR}/conf/servers"
-cat lead_private_list > "${SNAPPY_HOME_DIR}/conf/leads"
+ALL_CONF="${LOCATOR_CONF}${SERVER_CONF}${LEAD_CONF}"
+if [[ "${SETUP_EXISTS}" = "false" ]] || [[ "${ALL_CONF}" != "" ]]; then
+  paste -d '' locator_private_list locator_hostnames_list > "${SNAPPY_HOME_DIR}/conf/locators"
+  paste -d '' server_private_list server_hostnames_list > "${SNAPPY_HOME_DIR}/conf/servers"
+  cat lead_private_list > "${SNAPPY_HOME_DIR}/conf/leads"
 
-sed -i "/^#/ ! {/\\$/ ! { /^[[:space:]]*$/ ! s/$/ ${LOCATOR_CONF}/}}" "${SNAPPY_HOME_DIR}/conf/locators"
-sed -i "/^#/ ! {/\\$/ ! { /^[[:space:]]*$/ ! s/$/ ${SERVER_CONF}/}}" "${SNAPPY_HOME_DIR}/conf/servers"
-sed -i "/^#/ ! {/\\$/ ! { /^[[:space:]]*$/ ! s/$/ ${LEAD_CONF}/}}" "${SNAPPY_HOME_DIR}/conf/leads"
+  sed -i "/^#/ ! {/\\$/ ! { /^[[:space:]]*$/ ! s/$/ ${LOCATOR_CONF}/}}" "${SNAPPY_HOME_DIR}/conf/locators"
+  sed -i "/^#/ ! {/\\$/ ! { /^[[:space:]]*$/ ! s/$/ ${SERVER_CONF}/}}" "${SNAPPY_HOME_DIR}/conf/servers"
+  sed -i "/^#/ ! {/\\$/ ! { /^[[:space:]]*$/ ! s/$/ ${LEAD_CONF}/}}" "${SNAPPY_HOME_DIR}/conf/leads"
 
-# Enable jmx-manager for pulse to start - DISCONTINUED with SnappyData 0.9
-# sed -i '/^#/ ! {/\\$/ ! { /^[[:space:]]*$/ ! s/$/ -jmx-manager=true -jmx-manager-start=true/}}' "${SNAPPY_HOME_DIR}/conf/locators"
-# Configure hostname-for-clients
-# sed -i '/^#/ ! {/\\$/ ! { /^[[:space:]]*$/ ! s/\([^ ]*\)\(.*\)$/\1\2 -hostname-for-clients=\1/}}' "${SNAPPY_HOME_DIR}/conf/locators"
+  # Enable jmx-manager for pulse to start - DISCONTINUED with SnappyData 0.9
+  # sed -i '/^#/ ! {/\\$/ ! { /^[[:space:]]*$/ ! s/$/ -jmx-manager=true -jmx-manager-start=true/}}' "${SNAPPY_HOME_DIR}/conf/locators"
+  # Configure hostname-for-clients
+  # sed -i '/^#/ ! {/\\$/ ! { /^[[:space:]]*$/ ! s/\([^ ]*\)\(.*\)$/\1\2 -hostname-for-clients=\1/}}' "${SNAPPY_HOME_DIR}/conf/locators"
 
-# Check if config options already specify -heap-size or -memory-size
-echo "${SERVER_CONF} ${LEAD_CONF}" | grep -e "\-memory\-size\=" -e "\-heap\-size\="
-HAS_MEMORY_SIZE=`echo $?`
+  # Check if config options already specify -heap-size or -memory-size
+  echo "${SERVER_CONF} ${LEAD_CONF}" | grep -e "\-memory\-size\=" -e "\-heap\-size\="
+  HAS_MEMORY_SIZE=`echo $?`
 
-HEAPSTR=""
-if [[ ${HAS_MEMORY_SIZE} != 0 ]]; then
-  SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=5"
-  for node in ${SERVERS}; do
-    export SERVER_RAM=`ssh $SSH_OPTS "$node" "free -gt | grep Total"`
-    HEAP=`echo $SERVER_RAM | awk '{print $2}'` && HEAP=`echo $HEAP \* 0.8 / 1 | bc` && HEAPSTR="-heap-size=${HEAP}g"
-    break
+  HEAPSTR=""
+  if [[ ${HAS_MEMORY_SIZE} != 0 ]]; then
+    SSH_OPTS2="${SSH_OPTS} -o ConnectTimeout=5"
+    for node in ${SERVERS}; do
+      export SERVER_RAM=`ssh $SSH_OPTS2 "$node" "free -gt | grep Total"`
+      HEAP=`echo $SERVER_RAM | awk '{print $2}'` && HEAP=`echo $HEAP \* 0.8 / 1 | bc` && HEAPSTR="-heap-size=${HEAP}g"
+      break
+    done
+
+    sed -i "/^#/ ! {/\\$/ ! { /^[[:space:]]*$/ ! s/$/ ${HEAPSTR}/}}" "${SNAPPY_HOME_DIR}/conf/leads"
+    sed -i "/^#/ ! {/\\$/ ! { /^[[:space:]]*$/ ! s/$/ ${HEAPSTR}/}}" "${SNAPPY_HOME_DIR}/conf/servers"
+  fi
+else
+  # Update public hostname in the locators and servers conf files
+  private=(${LOCATOR_PRIVATE_IPS// / })
+  public=(${LOCATORS// / })
+  length=${#private[@]}
+
+  for ((i=0;i<$length;i++)); do
+    searchstr=${private[$i]}
+    replacestr=${public[$i]}
+    sed -i "/^${searchstr}/{s/-hostname-for-clients=[^ ]*/-hostname-for-clients=${replacestr}/}" "${SNAPPY_HOME_DIR}/conf/locators"
   done
 
-  sed -i "/^#/ ! {/\\$/ ! { /^[[:space:]]*$/ ! s/$/ ${HEAPSTR}/}}" "${SNAPPY_HOME_DIR}/conf/leads"
-  sed -i "/^#/ ! {/\\$/ ! { /^[[:space:]]*$/ ! s/$/ ${HEAPSTR}/}}" "${SNAPPY_HOME_DIR}/conf/servers"
+  private=(${SERVER_PRIVATE_IPS// / })
+  public=(${SERVERS// / })
+  length=${#private[@]}
+
+  for ((i=0;i<$length;i++)); do
+    searchstr=${private[$i]}
+    replacestr=${public[$i]}
+    sed -i "/^${searchstr}/{s/-hostname-for-clients=[^ ]*/-hostname-for-clients=${replacestr}/}" "${SNAPPY_HOME_DIR}/conf/servers"
+  done
 fi
 
 if [[ "${ZEPPELIN_HOST}" != "NONE" ]]; then
@@ -140,35 +163,35 @@ if [[ "${ZEPPELIN_HOST}" != "NONE" ]]; then
   fi
 fi
 
-# Set SPARK_DNS_HOST to public hostname of first lead so that SnappyData Pulse UI links work fine.
-SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=5"
+# Set SPARK_PUBLIC_DNS to public hostname of first lead so that SnappyData Pulse UI links work fine.
+SSH_OPTS2="${SSH_OPTS} -o ConnectTimeout=5"
 for node in ${LEADS}; do
-  export LEAD_DNS_NAME=`ssh $SSH_OPTS "$node" "wget -q -O - http://169.254.169.254/latest/meta-data/public-hostname"`
+  export LEAD_DNS_NAME=`ssh $SSH_OPTS2 "$node" "wget -q -O - http://169.254.169.254/latest/meta-data/public-hostname"`
   break
 done
 echo "SPARK_PUBLIC_DNS=${LEAD_DNS_NAME}" >> ${SNAPPY_HOME_DIR}/conf/spark-env.sh
 echo "SPARK_PUBLIC_DNS set to ${LEAD_DNS_NAME}"
 
-OTHER_LOCATORS=`cat locator_list | sed '1d'`
-echo "$OTHER_LOCATORS" > other-locators
+if [[ "${SETUP_EXISTS}" = "true" ]]; then
+  # Copy the conf directory to all the other instances
+  sh copy-dir.sh "${SNAPPY_HOME_DIR}/conf"  other-locators
+  sh copy-dir.sh "${SNAPPY_HOME_DIR}/conf"  lead_list
+  sh copy-dir.sh "${SNAPPY_HOME_DIR}/conf"  server_list
+else
+  # Copy this extracted directory to all the other instances
+  sh copy-dir.sh "${SNAPPY_HOME_DIR}"  other-locators
+  sh copy-dir.sh "${SNAPPY_HOME_DIR}"  lead_list
+  sh copy-dir.sh "${SNAPPY_HOME_DIR}"  server_list
 
-# Copy this extracted directory to all the other instances
-sh copy-dir.sh "${SNAPPY_HOME_DIR}"  other-locators
-sh copy-dir.sh "${SNAPPY_HOME_DIR}"  lead_list
-sh copy-dir.sh "${SNAPPY_HOME_DIR}"  server_list
-
+  for node in ${ALL_NODES}; do
+    ssh "$node" "sudo yum -y -q remove jre-1.7.0-openjdk; sudo yum -y -q install java-1.8.0-openjdk-devel"
+  done
+  for loc in "$OTHER_LOCATORS"; do
+    ssh "$loc" "${SSH_OPTS}" "mkdir -p ~/snappydata"
+    scp -q "${SSH_OPTS}" aws-setup.sh aws-shutdown.sh ec2-variables.sh zeppelin-setup.sh fetch-distribution.sh "${loc}:~/snappydata"
+  done
+fi
 echo "Configured the cluster."
-
-DIR=`readlink -f zeppelin-setup.sh`
-DIR=`echo "$DIR"|sed 's@/$@@'`
-DIR=`dirname "$DIR"`
-
-ALL_NODES=( "${OTHER_LOCATORS} ${LEADS} ${SERVERS}" )
-
-for node in ${ALL_NODES}; do
-  ssh "$node" "sudo yum -y -q remove jre-1.7.0-openjdk"
-  ssh "$node" "sudo yum -y -q install java-1.8.0-openjdk-devel"
-done
 
 # Launch the SnappyData cluster
 bash "${SNAPPY_HOME_DIR}/sbin/snappy-start-all.sh"
@@ -178,13 +201,17 @@ if [[ $? != 0 ]]; then
   exit 2
 fi
 
+DIR=`readlink -f zeppelin-setup.sh`
+DIR=`echo "$DIR"|sed 's@/$@@'`
+DIR=`dirname "$DIR"`
+
 # Setup and launch zeppelin, if configured.
 if [[ "${ZEPPELIN_HOST}" != "NONE" ]]; then
   for server in "$ZEPPELIN_HOST"; do
-    ssh "$server" -o StrictHostKeyChecking=no "mkdir -p ~/snappydata"
-    scp -q -o StrictHostKeyChecking=no ec2-variables.sh zeppelin-setup.sh fetch-distribution.sh "${server}:~/snappydata"
+    ssh "$server" "${SSH_OPTS}" "mkdir -p ~/snappydata"
+    scp -q "${SSH_OPTS}" ec2-variables.sh zeppelin-setup.sh fetch-distribution.sh "${server}:~/snappydata"
   done
-  ssh "$ZEPPELIN_HOST" -t -t -o StrictHostKeyChecking=no "sh ${DIR}/zeppelin-setup.sh"
+  ssh "$ZEPPELIN_HOST" -t -t "${SSH_OPTS}" "sh ${DIR}/zeppelin-setup.sh"
 fi
 
 popd > /dev/null

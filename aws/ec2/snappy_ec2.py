@@ -68,23 +68,6 @@ SNAPPYDATA_UI_PORT = ""
 LOCATOR_CLIENT_PORT = "1527"
 
 DEFAULT_SNAPPY_VERSION = "LATEST"
-DEFAULT_SNAPPY_BINARY = "https://github.com/SnappyDataInc/snappydata/releases/download/v1.0.2/snappydata-1.0.2-bin.tar.gz"
-
-# Amazon Linux AMIs 2016.09 for EBS-backed HVM
-OLD_HVM_AMI_MAP = {
-    "ap-northeast-1": "ami-0c11b26d",
-    "ap-northeast-2": "ami-983ce8f6",
-    "ap-south-1": "ami-34b4c05b",
-    "ap-southeast-1": "ami-b953f2da",
-    "ap-southeast-2": "ami-db704cb8",
-    "eu-central-1": "ami-f9619996",
-    "eu-west-1": "ami-9398d3e0",
-    "sa-east-1": "ami-97831ffb",
-    "us-east-1": "ami-b73b63a0",
-    "us-east-2": "ami-58277d3d",
-    "us-west-1": "ami-23e8a343",
-    "us-west-2": "ami-5ec1673e"
-}
 
 # Amazon Linux AMIs 2018.03 for EBS-backed HVM
 HVM_AMI_MAP = {
@@ -238,12 +221,9 @@ def parse_args():
         "-a", "--ami",
         help="Amazon Machine Image ID to use")
     parser.add_option(
-        "--snappydata-tarball", default=DEFAULT_SNAPPY_BINARY,
+        "--snappydata-tarball", default="",
         help="HTTP URL or local file path of the SnappyData distribution tarball with which the " +
              "cluster will be launched. (default: %default)")
-    # parser.add_option(
-    #     "-b", "--private-build", default="",
-    #     help="Launch cluster using the specified local build (.tar.gz) of SnappyData.")
     parser.add_option(
         "--locator-conf", default="",
         help="Configuration properties for locators (default: %default)")
@@ -282,8 +262,11 @@ def parse_args():
         help="Resume installation on a previously launched cluster " +
              "(for debugging)")
     parser.add_option(
+        "--root-ebs-vol-size", metavar="SIZE", type="int", default=32,
+        help="Size (in GB) of root EBS volume. SnappyData is installed on root volume.")
+    parser.add_option(
         "--ebs-vol-size", metavar="SIZE", type="int", default=0,
-        help="Size (in GB) of each EBS volume.")
+        help="Size (in GB) of each additional EBS volume to be attached.")
     parser.add_option(
         "--ebs-vol-type", default="standard",
         help="EBS volume type (e.g. 'gp2', 'standard').")
@@ -381,11 +364,11 @@ def parse_args():
                           file=stderr)
                     sys.exit(1)
 
-    # if opts.with_zeppelin:
-        # print("Option --with-zeppelin specified. The latest SnappyData version will be used.")
-        # opts.snappydata_version = "LATEST"
+    if opts.root_ebs_vol_size < 8:
+        print("Minimum 8GB of root EBS volume size required. Exiting.")
+        sys.exit(1)
 
-    if opts.snappydata_tarball != "":
+    if opts.snappydata_tarball != "" and action in ("start", "launch"):
         if not opts.snappydata_tarball.endswith(".tar.gz"):
             print("The tarball format not recognised. It must be built with snappydata's gradle "
                   + "tasks: 'distProduct' or 'distTar'. Exiting.")
@@ -403,7 +386,7 @@ def parse_args():
             sys.exit(1)
 
     if opts.snappydata_version.startswith("0."):
-        print("Versions prior to 1.0.0 not supported.")
+        print("Versions prior to 1.0.0 not supported. Exiting.")
         sys.exit(1)
 
     return (opts, action, cluster_name)
@@ -411,7 +394,7 @@ def parse_args():
 
 def url_exists(path):
     r = requests.head(path)
-    return r.status_code == requests.codes.ok
+    return r.status_code in (requests.codes.ok, requests.codes.moved, requests.codes.found)
     # Check also for requests.codes.moved and requests.codes.found?
 
 
@@ -721,6 +704,11 @@ def launch_cluster(conn, opts, cluster_name):
     # Create block device mapping so that we can add EBS volumes if asked to.
     # The first drive is attached as /dev/sds, 2nd as /dev/sdt, ... /dev/sdz
     block_map = BlockDeviceMapping()
+    rootdevice = EBSBlockDeviceType()
+    rootdevice.size = opts.root_ebs_vol_size
+    rootdevice.volume_type = opts.ebs_vol_type
+    rootdevice.delete_on_termination = True
+    block_map["/dev/xvda"] = rootdevice
     if opts.ebs_vol_size > 0:
         for i in range(opts.ebs_vol_num):
             device = EBSBlockDeviceType()
@@ -1026,7 +1014,8 @@ def setup_cluster(conn, locator_nodes, lead_nodes, server_nodes, zeppelin_nodes,
         locator_nodes=locator_nodes,
         lead_nodes=lead_nodes,
         server_nodes=server_nodes,
-        zeppelin_nodes=zeppelin_nodes
+        zeppelin_nodes=zeppelin_nodes,
+        copyTarball=deploy_ssh_key
     )
 
     if opts.deploy_root_dir is not None:
@@ -1112,7 +1101,8 @@ def wait_for_cluster_state(conn, opts, cluster_instances, cluster_state):
     num_attempts = 0
 
     while True:
-        time.sleep(5 * num_attempts)  # seconds
+        # time.sleep(5 * num_attempts)  # seconds
+        time.sleep(10)  # seconds
 
         for i in cluster_instances:
             i.update()
@@ -1223,7 +1213,7 @@ def get_num_disks(instance_type):
 # script to be run on that instance to copy them to other nodes.
 #
 # root_dir should be an absolute path to the directory with the files we want to deploy.
-def deploy_files(conn, root_dir, opts, locator_nodes, lead_nodes, server_nodes, zeppelin_nodes):
+def deploy_files(conn, root_dir, opts, locator_nodes, lead_nodes, server_nodes, zeppelin_nodes, copyTarball):
     active_locator = get_dns_name(locator_nodes[0], opts.private_ips)
 
     num_disks = get_num_disks(opts.instance_type)
@@ -1317,15 +1307,17 @@ def deploy_files(conn, root_dir, opts, locator_nodes, lead_nodes, server_nodes, 
         "%s@%s:/" % (opts.user, active_locator)
     ]
     subprocess.check_call(command)
-    if opts.snappydata_tarball.startswith("/"):
-        cmd = [
-            'rsync', '-v',
-            '-e', stringify_command(ssh_command(opts)),
-            "%s" % opts.snappydata_tarball,
-            "%s@%s:/home/%s/snappydata/" % (opts.user, active_locator, opts.user)
-        ]
-        print("Copying your local SnappyData tarball to AWS...")
-        subprocess.check_call(cmd)
+    # Do not upload tarball in case this is "start" command.
+    if copyTarball:
+        if opts.snappydata_tarball.startswith("/"):
+            cmd = [
+                'rsync', '-v',
+                '-e', stringify_command(ssh_command(opts)),
+                "%s" % opts.snappydata_tarball,
+                "%s@%s:/home/%s/snappydata/" % (opts.user, active_locator, opts.user)
+            ]
+            print("Copying your local SnappyData tarball to AWS...")
+            subprocess.check_call(cmd)
     # Remove the temp directory we created above
     shutil.rmtree(tmp_dir)
 
@@ -1357,6 +1349,7 @@ def stringify_command(parts):
 def ssh_args(opts):
     parts = ['-o', 'StrictHostKeyChecking=no']
     parts += ['-o', 'UserKnownHostsFile=/dev/null']
+    parts += ['-o', 'LogLevel=error']
     if opts.identity_file is not None:
         parts += ['-i', opts.identity_file]
     return parts
@@ -1772,6 +1765,11 @@ def real_main():
         opts.instance_type = existing_store_type
 
         setup_cluster(conn, locator_nodes, lead_nodes, server_nodes, zeppelin_nodes, opts, False)
+        lead = get_dns_name(lead_nodes[0], opts.private_ips)
+        if SNAPPYDATA_UI_PORT == "":
+            SNAPPYDATA_UI_PORT = '5050'
+        url = "http://%s:%s" % (lead, SNAPPYDATA_UI_PORT)
+        print("SnappyData Unified cluster started. Access SnappyData Pulse UI at %s" % url)
 
     else:
         print("Invalid action: %s" % action, file=stderr)
