@@ -263,7 +263,10 @@ def parse_args():
              "(for debugging)")
     parser.add_option(
         "--root-ebs-vol-size", metavar="SIZE", type="int", default=32,
-        help="Size (in GB) of root EBS volume. SnappyData is installed on root volume.")
+        help="Size (in GB) of root EBS volume for servers and leads. SnappyData is installed on root volume.")
+    parser.add_option(
+        "--root-ebs-vol-size-locator", metavar="SIZE", type="int", default=10,
+        help="Size (in GB) of root EBS volume for locators. SnappyData is installed on root volume.")
     parser.add_option(
         "--ebs-vol-size", metavar="SIZE", type="int", default=0,
         help="Size (in GB) of each additional EBS volume to be attached.")
@@ -364,7 +367,7 @@ def parse_args():
                           file=stderr)
                     sys.exit(1)
 
-    if opts.root_ebs_vol_size < 8:
+    if opts.root_ebs_vol_size < 8 or opts.root_ebs_vol_size_locator < 8:
         print("Minimum 8GB of root EBS volume size required. Exiting.")
         sys.exit(1)
 
@@ -704,6 +707,11 @@ def launch_cluster(conn, opts, cluster_name):
     # Create block device mapping so that we can add EBS volumes if asked to.
     # The first drive is attached as /dev/sds, 2nd as /dev/sdt, ... /dev/sdz
     block_map = BlockDeviceMapping()
+    rootdevice_loc = EBSBlockDeviceType()
+    rootdevice_loc.size = opts.root_ebs_vol_size_locator
+    rootdevice_loc.volume_type = opts.ebs_vol_type
+    rootdevice_loc.delete_on_termination = True
+
     rootdevice = EBSBlockDeviceType()
     rootdevice.size = opts.root_ebs_vol_size
     rootdevice.volume_type = opts.ebs_vol_type
@@ -824,6 +832,7 @@ def launch_cluster(conn, opts, cluster_name):
                 inst.start()
         locator_nodes = existing_locators
     else:
+        block_map["/dev/xvda"] = rootdevice_loc
         zones = get_zones(conn, opts)
         num_zones = len(zones)
         i = 0
@@ -862,6 +871,7 @@ def launch_cluster(conn, opts, cluster_name):
     lead_nodes = []
     for zone in zones:
         num_leads_this_zone = get_partition(opts.leads, num_zones, i)
+        block_map["/dev/xvda"] = rootdevice
         if num_leads_this_zone > 0:
             lead_res = image.run(
                 key_name=opts.key_pair,
