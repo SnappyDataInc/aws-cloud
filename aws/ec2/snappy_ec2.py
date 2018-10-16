@@ -1043,13 +1043,11 @@ def setup_cluster(conn, locator_nodes, lead_nodes, server_nodes, zeppelin_nodes,
 
 
 def setup_snappy_cluster(master, opts):
-    ssh(master, opts, "chmod u+x snappydata/aws-setup.sh")
-    ssh(master, opts, "snappydata/aws-setup.sh")
+    ssh(master, opts, "chmod u+x snappydata/aws-setup.sh && snappydata/aws-setup.sh")
 
 
 def shutdown_snappy_cluster(master, opts):
-    ssh(master, opts, "chmod u+x snappydata/aws-shutdown.sh")
-    ssh(master, opts, "snappydata/aws-shutdown.sh")
+    ssh(master, opts, "chmod u+x snappydata/aws-shutdown.sh && snappydata/aws-shutdown.sh", 1)
 
 
 def is_ssh_available(host, opts, print_ssh_output=True):
@@ -1371,7 +1369,7 @@ def ssh_command(opts):
 
 # Run a command on a host through ssh, retrying up to five times
 # and then throwing an exception if ssh continues to fail.
-def ssh(host, opts, command):
+def ssh(host, opts, command, attempts=5):
     tries = 0
     while True:
         try:
@@ -1379,7 +1377,7 @@ def ssh(host, opts, command):
                 ssh_command(opts) + ['-t', '-t', '%s@%s' % (opts.user, host),
                                      stringify_command(command)])
         except subprocess.CalledProcessError as e:
-            if tries > 5:
+            if tries >= attempts:
                 # If this was an ssh failure, provide the user with hints.
                 if e.returncode == 255:
                     raise UsageError(

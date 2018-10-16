@@ -75,4 +75,3 @@ else
   echo "SnappyData distribution already present."
 fi
 
-echo -e "\nexport SNAPPY_HOME_DIR=${SNAPPY_HOME_DIR}" >> ec2-variables.sh

@@ -31,7 +31,6 @@ echo "$ZEPPELIN_HOST" > zeppelin_server
 OTHER_LOCATORS=`cat locator_list | sed '1d'`
 echo "$OTHER_LOCATORS" > other-locators
 ALL_NODES=( "${OTHER_LOCATORS} ${LEADS} ${SERVERS}" )
-SNAPPY_HOME_DIR=/opt/snappydata
 SSH_OPTS="-o StrictHostKeyChecking=no -o LogLevel=error"
 
 # Check if enterprise version is to be setup.
@@ -71,7 +70,6 @@ if [[ ! -d "${SNAPPY_HOME_DIR}" ]]; then
       exit 2
     fi
     sudo rm -rf "${SNAPPY_HOME_DIR}" && sudo mv "${UNTARRED_DIR}" "${SNAPPY_HOME_DIR}"
-    echo -e "export SNAPPY_HOME_DIR=${SNAPPY_HOME_DIR}" >> ec2-variables.sh
   fi
 fi
 
@@ -187,8 +185,10 @@ else
     ssh "$node" "sudo yum -y -q remove jre-1.7.0-openjdk; sudo yum -y -q install java-1.8.0-openjdk-devel"
   done
   for loc in "$OTHER_LOCATORS"; do
-    ssh "$loc" "${SSH_OPTS}" "mkdir -p ~/snappydata"
-    scp -q "${SSH_OPTS}" aws-setup.sh aws-shutdown.sh ec2-variables.sh zeppelin-setup.sh fetch-distribution.sh "${loc}:~/snappydata"
+    if [[ "${loc}" != "" ]]; then
+      ssh "$loc" "${SSH_OPTS}" "mkdir -p ~/snappydata"
+      scp -q "${SSH_OPTS}" aws-setup.sh aws-shutdown.sh ec2-variables.sh zeppelin-setup.sh fetch-distribution.sh "${loc}:~/snappydata"
+    fi
   done
 fi
 echo "Configured the cluster."
