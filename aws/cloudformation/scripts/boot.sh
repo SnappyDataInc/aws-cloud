@@ -41,8 +41,8 @@ sudo yum -y update
 #fi
 
 # Update the urls for various artifacts and scripts.
-export SNAPPYDATA_URL="https://github.com/SnappyDataInc/snappydata/releases/download/v1.0.2/snappydata-1.0.2-bin.tar.gz"
-export INTERPRETER_URL="https://github.com/SnappyDataInc/zeppelin-interpreter/releases/download/v0.7.3.2/snappydata-zeppelin-0.7.3.2.jar"
+export SNAPPYDATA_URL="https://github.com/SnappyDataInc/snappydata/releases/download/v1.0.0/snappydata-1.0.0-bin.tar.gz"
+export INTERPRETER_URL="https://github.com/SnappyDataInc/zeppelin-interpreter/releases/download/v0.7.2/snappydata-zeppelin-0.7.2.jar"
 export NOTEBOOK_URL="https://github.com/SnappyDataInc/zeppelin-interpreter/raw/notes/examples/notebook/notebook.tar.gz"
 export CF_SCRIPT_URL="https://raw.githubusercontent.com/SnappyDataInc/snappy-cloud-tools/master/aws/cloudformation/scripts/setup.sh"
 printf "# `date` Updated urls $?\n" >> status.log
